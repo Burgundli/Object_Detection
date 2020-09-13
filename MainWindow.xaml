@@ -5,12 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Object_Detection"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="450" Width="800" Closing="Window_Closing">
     <Grid>
 
-        <StatusBar HorizontalAlignment="Left" Height="26" Margin="21,375,0,0" VerticalAlignment="Top" Width="150">
-            <StatusBarItem Content="{Binding StatusText}"/>
+        <StatusBar HorizontalAlignment="Left" Height="26" Margin="34,364,0,0" VerticalAlignment="Top" Width="150">
+            <StatusBarItem Content="{Binding StatusText}" />
         </StatusBar>
+        
         <Image HorizontalAlignment="Left" Height="309" Margin="51,50,0,0" VerticalAlignment="Top" Width="610" Source="{Binding ImageSource}"/>
 
 

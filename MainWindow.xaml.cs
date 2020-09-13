@@ -47,17 +47,17 @@ namespace Object_Detection
             depthbitmap = new WriteableBitmap(frameDescription.Width, frameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
             kinectSensor.IsAvailableChanged += Sensor_IsAvaibleChanged;
             kinectSensor.Open();
-            KinectStatus = kinectSensor.IsAvailable ? "Running" : "Turned off";
-          
+            StatusText = kinectSensor.IsAvailable ? "Running" : "Turned off";
+            DataContext = this;   //  - window object is used as the view model for default binding source of objects || WIKI : Data context is a concept that allows elements to inherit information from their parent elements about the data source that is used for binding, as well as other characteristics of the binding, such as the path. 
+            
 
-           
             InitializeComponent();
         }
         public ImageSource ImageSource
         {
             get
             {
-                return this.depthbitmap; 
+                return depthbitmap; 
             }
         }
         public string StatusText
@@ -66,14 +66,27 @@ namespace Object_Detection
             {
                 return KinectStatus; 
             }
-           
+            set
+            {
+                if (KinectStatus != value)
+                {
+                    KinectStatus = value;
+
+                    // notify any bound elements that the text has changed using the property changed event handler for Main Window
+                    if (PropertyChanged != null)
+                    {
+                        PropertyChanged(this, new PropertyChangedEventArgs("StatusText"));
+                    }
+                }
+            }
+
         }
 
 
         private void Sensor_IsAvaibleChanged(object sender, IsAvailableChangedEventArgs e)
         {
 
-            KinectStatus = kinectSensor.IsAvailable ? "Running" : "Turned off";
+            StatusText = kinectSensor.IsAvailable ? "Running" : "Turned off";
 
            
         }
@@ -120,7 +133,7 @@ namespace Object_Detection
         }
         private void RenderPixels()
         {
-            depthbitmap.WritePixels( new Int32Rect(0, 0, this.depthbitmap.PixelWidth, this.depthbitmap.PixelHeight), this.depthpixels, this.depthbitmap.PixelWidth,0);
+            depthbitmap.WritePixels( new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth,0);
 
         }
 
