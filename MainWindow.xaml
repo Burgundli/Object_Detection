@@ -7,6 +7,12 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        
+
+        <StatusBar HorizontalAlignment="Left" Height="26" Margin="21,375,0,0" VerticalAlignment="Top" Width="150">
+            <StatusBarItem Content="{Binding StatusText}"/>
+        </StatusBar>
+        <Image HorizontalAlignment="Left" Height="309" Margin="51,50,0,0" VerticalAlignment="Top" Width="610" Source="{Binding ImageSource}"/>
+
+
     </Grid>
 </Window>
