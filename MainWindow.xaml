@@ -11,8 +11,26 @@
         <StatusBar HorizontalAlignment="Left" Height="26" Margin="34,364,0,0" VerticalAlignment="Top" Width="150">
             <StatusBarItem Content="{Binding StatusText}" />
         </StatusBar>
-        
-        <Image HorizontalAlignment="Left" Height="309" Margin="51,50,0,0" VerticalAlignment="Top" Width="610" Source="{Binding ImageSource}"/>
+
+        <Image x:Name="LiveCapture" HorizontalAlignment="Left" Height="309" Margin="34,50,0,0" VerticalAlignment="Top" Width="330
+               
+               " Source="{Binding ImageSource}"/>
+        <Button x:Name="CaptureBtn" Content="Capture" HorizontalAlignment="Left" Margin="433,365,0,0" VerticalAlignment="Top" Width="93" RenderTransformOrigin="0.5,0.5" Height="26" Click="CaptureBtn_Click">
+            <Button.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform/>
+                    <SkewTransform/>
+                    <RotateTransform Angle="0.06"/>
+                    <TranslateTransform/>
+                </TransformGroup>
+            </Button.RenderTransform>
+        </Button>
+        <Button x:Name="LoadBtn" Content="Load" HorizontalAlignment="Left" Margin="310,364,0,0" VerticalAlignment="Top" Width="93" Height="26" Click="LoadBtn_Click"/>
+        <Label x:Name="MyLabel" Content="Label" HorizontalAlignment="Left" Height="28" Margin="562,17,0,0" VerticalAlignment="Top" Width="74"/>
+        <Label x:Name="MyLabel2" Content="Label" HorizontalAlignment="Left" Margin="188,19,0,0" VerticalAlignment="Top" Width="63"/>
+        <Image x:Name="LoadCapture" HorizontalAlignment="Left" Height="309" Margin="407,50,0,0" VerticalAlignment="Top" Width="330" RenderTransformOrigin="0.1,0.04"/>
+        <Label Content="Live Capture pixel count:" HorizontalAlignment="Left" Margin="34,19,0,0" VerticalAlignment="Top"/>
+        <Label Content="Loaded Image pixel count:" HorizontalAlignment="Left" Margin="407,19,0,0" VerticalAlignment="Top"/>
 
 
     </Grid>

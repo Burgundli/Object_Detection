@@ -17,6 +17,8 @@ using System.Windows.Shapes;
 using Microsoft.Kinect;
 using Emgu.CV;
 using Emgu.CV.Structure;
+using System.IO;
+using System.Drawing;
 
 namespace Object_Detection
 {
@@ -33,7 +35,6 @@ namespace Object_Detection
         private WriteableBitmap depthbitmap = null;         // - bitmap for displaying image 
         private byte[] depthpixels = null;                  // - intermediate storage for frame datta conveted to color pointer 
         private string KinectStatus = null;                 // - current status of the kinect sensor 
-
         public MainWindow()
         {
             // Set up of  the Sensor and reader 
@@ -132,9 +133,10 @@ namespace Object_Detection
 
         }
         private void RenderPixels()
-        {
-            depthbitmap.WritePixels( new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth,0);
 
+        {
+            MyLabel2.Content = depthpixels.Length.ToString();
+            depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth,0);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -151,6 +153,32 @@ namespace Object_Detection
                 kinectSensor.Close();
                 kinectSensor = null; 
             }
+           
+        }
+
+        private void CaptureBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var Gray8DepthBmp = new FormatConvertedBitmap(depthbitmap, PixelFormats.Gray8, null, 0d);              // - create a new formated bitmap for saving the image to the file 
+            var encoder = new BmpBitmapEncoder();                                                                  // - create an encoder for converting to a bmp file  
+            encoder.Frames.Add(BitmapFrame.Create(Gray8DepthBmp));                                                 // - adds a frame with the speciefied format to the encoder 
+
+            using (var fileStream = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.Create))
+            {
+                encoder.Save(fileStream);                                                                           // - save the file to the defined path from the encoder 
+            }   
+
+        }
+
+        private void LoadBtn_Click(object sender, RoutedEventArgs e)
+        {
+          // - opens a specific file, decode it using bitmap decoder and copies it to an byte array of pixel values, then draws it to an image 
+            byte[] ArrOfPxl = new byte[512*424];
+            Stream imageStreamSource = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.Open, FileAccess.Read, FileShare.Read);
+            BmpBitmapDecoder decoder = new BmpBitmapDecoder(imageStreamSource, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
+            BitmapSource bitmapSource = decoder.Frames[0]; 
+            LoadCapture.Source = bitmapSource;
+            bitmapSource.CopyPixels(ArrOfPxl, 512, 0);
+            MyLabel.Content = ArrOfPxl.Length.ToString();  
            
         }
     }
