@@ -31,6 +31,7 @@
         <Image x:Name="LoadCapture" HorizontalAlignment="Left" Height="309" Margin="407,50,0,0" VerticalAlignment="Top" Width="330" RenderTransformOrigin="0.1,0.04"/>
         <Label Content="Live Capture pixel count:" HorizontalAlignment="Left" Margin="34,19,0,0" VerticalAlignment="Top"/>
         <Label Content="Loaded Image pixel count:" HorizontalAlignment="Left" Margin="407,19,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="Centroid" Content="Label" HorizontalAlignment="Left" Margin="590,364,0,0" VerticalAlignment="Top" Width="89"/>
 
 
     </Grid>

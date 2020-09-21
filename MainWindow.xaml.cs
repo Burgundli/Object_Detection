@@ -19,6 +19,8 @@ using Emgu.CV;
 using Emgu.CV.Structure;
 using System.IO;
 using System.Drawing;
+using System.Runtime.InteropServices;
+using Emgu.CV.Cuda;
 
 namespace Object_Detection
 {
@@ -103,8 +105,9 @@ namespace Object_Detection
                     {
                         if (((frameDescription.Width*frameDescription.Height) == (kinectBuffer.Size / frameDescription.BytesPerPixel)) && (frameDescription.Width == depthbitmap.PixelWidth) && (frameDescription.Height == depthbitmap.PixelHeight))
                         {
-                            ushort maxDepthValue = ushort.MaxValue;
-                            ProcessDepthFrameData(kinectBuffer.UnderlyingBuffer, kinectBuffer.Size, depthFrame.DepthMinReliableDistance, maxDepthValue);
+                            ushort maxDepthValue = 1000;
+                            ushort minDepthValue = 200;
+                            ProcessDepthFrameData(kinectBuffer.UnderlyingBuffer, kinectBuffer.Size, minDepthValue, maxDepthValue);
                             IsFrameProcessed = true;
                         }
                     }
@@ -126,23 +129,26 @@ namespace Object_Detection
             for (int i = 0; i < (int)(depthFrameDataSize / frameDescription.BytesPerPixel); ++i)
             {
                 ushort depth = framedata[i];
-                depthpixels[i] = (byte)(depth >= minDepth && depth <= maxDepth ? (depth / DepthToByte) : 0);
+                depthpixels[i] = (byte)(depth >= minDepth && depth <= maxDepth ? (256 -(depth / DepthToByte)) : 0);
 
             }
 
 
         }
-        private void RenderPixels()
+        private unsafe  void RenderPixels()
 
         {
+   
             MyLabel2.Content = depthpixels.Length.ToString();
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth,0);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
-
+        
         private void Window_Closing(object sender, CancelEventArgs e)
         {
+            // after the window is closed dispose the framereade and close the kinect sensor 
+
             if (depthFrameReader != null)
             {
                 depthFrameReader.Dispose();
@@ -169,15 +175,28 @@ namespace Object_Detection
 
         }
 
+        
         private void LoadBtn_Click(object sender, RoutedEventArgs e)
         {
-          // - opens a specific file, decode it using bitmap decoder and copies it to an byte array of pixel values, then draws it to an image 
-            byte[] ArrOfPxl = new byte[512*424];
-            Stream imageStreamSource = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.Open, FileAccess.Read, FileShare.Read);
+            byte[] ArrOfPxl = new byte[512 * 424];
+
+            // - read image from file calculate centroid based on moments 
+            Mat mat = CvInvoke.Imread("C:/Users/CPT Danko/Pictures/capture.png", Emgu.CV.CvEnum.ImreadModes.AnyColor);             
+            Moments moments = CvInvoke.Moments(mat, false);
+            System.Drawing.Point WeightedCentroid = new System.Drawing.Point((int)(moments.M10 / moments.M00), (int)(moments.M01 / moments.M00));
+            Centroid.Content = WeightedCentroid.X.ToString() + "  " + WeightedCentroid.Y.ToString();
+
+            // - opens a specific file, decode it using bitmap decoder and copies it to an byte array of pixel values, then draws it to an image
+            System.IO.Stream imageStreamSource = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.Open, FileAccess.Read, FileShare.Read);
             BmpBitmapDecoder decoder = new BmpBitmapDecoder(imageStreamSource, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
             BitmapSource bitmapSource = decoder.Frames[0]; 
-            LoadCapture.Source = bitmapSource;
             bitmapSource.CopyPixels(ArrOfPxl, 512, 0);
+
+            //draw a black dot a the centre of a shape 
+            WriteableBitmap CentroidBitmap = new WriteableBitmap(frameDescription.Width, frameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
+            ArrOfPxl[(WeightedCentroid.Y * 512) + WeightedCentroid.X] = 0;
+            CentroidBitmap.WritePixels(new Int32Rect(0, 0, CentroidBitmap.PixelWidth, CentroidBitmap.PixelHeight), ArrOfPxl, CentroidBitmap.PixelWidth, 0);
+            LoadCapture.Source =CentroidBitmap;
             MyLabel.Content = ArrOfPxl.Length.ToString();  
            
         }
