@@ -16,11 +16,15 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Microsoft.Kinect;
 using Emgu.CV;
+using Emgu.Util;
 using Emgu.CV.Structure;
 using System.IO;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using Emgu.CV.Cuda;
+using Emgu.CV.Reflection;
+using Emgu.CV.Util;
+using Emgu.CV.CvEnum;
 
 namespace Object_Detection
 {
@@ -125,21 +129,30 @@ namespace Object_Detection
         private unsafe void ProcessDepthFrameData (IntPtr depthFrameData, uint depthFrameDataSize, ushort minDepth, ushort maxDepth)
         {
             ushort*  framedata = (ushort*)depthFrameData;
-
+            int PixelCount = 0;  
+             // show olny pixels within the requried range and count them  
             for (int i = 0; i < (int)(depthFrameDataSize / frameDescription.BytesPerPixel); ++i)
             {
                 ushort depth = framedata[i];
-                depthpixels[i] = (byte)(depth >= minDepth && depth <= maxDepth ? (256 -(depth / DepthToByte)) : 0);
-
+                if (depth >= minDepth && depth <= maxDepth && depth != 0)
+                {
+                    depthpixels[i] = (byte)(256 - (depth / DepthToByte));
+                    PixelCount++;
+                }
+                else
+                {
+                    depthpixels[i] = 0;
+                }
+              
             }
 
-
+            MyLabel2.Content = PixelCount.ToString();
         }
         private unsafe  void RenderPixels()
 
         {
    
-            MyLabel2.Content = depthpixels.Length.ToString();
+           
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth,0);
         }
 
@@ -174,30 +187,71 @@ namespace Object_Detection
             }   
 
         }
+        // converts Image EmguCV class to bitmapsource 
+        public static class BitmapSourceConvert
+        {
+            [DllImport("gdi32")]
+            private static extern int DeleteObject(IntPtr o);
 
-        
-        private void LoadBtn_Click(object sender, RoutedEventArgs e)
+            public static BitmapSource ToBitmapSource(Image<Gray,byte> image)
+            {
+                using (System.Drawing.Bitmap source = image.ToBitmap()) 
+                {
+                    IntPtr ptr = source.GetHbitmap();
+
+                    BitmapSource bs = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                        ptr,
+                        IntPtr.Zero,
+                        Int32Rect.Empty,
+                        BitmapSizeOptions.FromEmptyOptions()) ;
+
+                    DeleteObject(ptr);
+                    return bs;
+                }
+            }
+        }
+        private unsafe  void LoadBtn_Click(object sender, RoutedEventArgs e)
         {
             byte[] ArrOfPxl = new byte[512 * 424];
+            int PixelCount = 0;
+            BitmapSource BluredBitmap;
+
+
 
             // - read image from file calculate centroid based on moments 
-            Mat mat = CvInvoke.Imread("C:/Users/CPT Danko/Pictures/capture.png", Emgu.CV.CvEnum.ImreadModes.AnyColor);             
+            Mat mat = CvInvoke.Imread("C:/Users/CPT Danko/Pictures/capture.png",ImreadModes.AnyColor);             
             Moments moments = CvInvoke.Moments(mat, false);
             System.Drawing.Point WeightedCentroid = new System.Drawing.Point((int)(moments.M10 / moments.M00), (int)(moments.M01 / moments.M00));
             Centroid.Content = WeightedCentroid.X.ToString() + "  " + WeightedCentroid.Y.ToString();
+            // - Canny edge recognition based on image contours with Gaussian bluring 
+            var image = new Image<Gray, byte>("C:/Users/CPT Danko/Pictures/capture.png");
+            CvInvoke.GaussianBlur(image, image, new System.Drawing.Size(5, 5), 0);
+            var CannyImage = new UMat();
+            CvInvoke.Canny(image, CannyImage, 50, 100);
+            VectorOfVectorOfPoint ImageContours = new VectorOfVectorOfPoint();
+            CvInvoke.FindContours(CannyImage, ImageContours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
+            var imageContours = new Image<Gray, byte>(image.Width, image.Height, new Gray(0));
+            CvInvoke.DrawContours(imageContours, ImageContours, -1, new MCvScalar(255, 0, 0));
+            CvInvoke.Circle(imageContours, WeightedCentroid, 5,new MCvScalar(255,0,0));
+            //BluredBitmap = BitmapSourceConvert.ToBitmapSource(image);
+
 
             // - opens a specific file, decode it using bitmap decoder and copies it to an byte array of pixel values, then draws it to an image
-            System.IO.Stream imageStreamSource = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.Open, FileAccess.Read, FileShare.Read);
-            BmpBitmapDecoder decoder = new BmpBitmapDecoder(imageStreamSource, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-            BitmapSource bitmapSource = decoder.Frames[0]; 
-            bitmapSource.CopyPixels(ArrOfPxl, 512, 0);
+            //System.IO.Stream imageStreamSource = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.Open, FileAccess.Read, FileShare.Read);
+            //BmpBitmapDecoder decoder = new BmpBitmapDecoder(imageStreamSource, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
+            BitmapSource bitmapSource = BitmapSourceConvert.ToBitmapSource(imageContours); 
+            
+            //bitmapSource.CopyPixels(ArrOfPxl, 512, 0);
 
             //draw a black dot a the centre of a shape 
-            WriteableBitmap CentroidBitmap = new WriteableBitmap(frameDescription.Width, frameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
-            ArrOfPxl[(WeightedCentroid.Y * 512) + WeightedCentroid.X] = 0;
-            CentroidBitmap.WritePixels(new Int32Rect(0, 0, CentroidBitmap.PixelWidth, CentroidBitmap.PixelHeight), ArrOfPxl, CentroidBitmap.PixelWidth, 0);
-            LoadCapture.Source =CentroidBitmap;
-            MyLabel.Content = ArrOfPxl.Length.ToString();  
+            //WriteableBitmap CentroidBitmap = new WriteableBitmap(frameDescription.Width, frameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
+            //ArrOfPxl[(WeightedCentroid.Y * 512) + WeightedCentroid.X] = 255;
+            //CentroidBitmap.WritePixels(new Int32Rect(0, 0, CentroidBitmap.PixelWidth, CentroidBitmap.PixelHeight), ArrOfPxl, CentroidBitmap.PixelWidth, 0);
+            LoadCapture.Source =bitmapSource;
+
+            // count pixels in the loaded image
+            PixelCount = ArrOfPxl.Count(n => n != 0);
+            MyLabel.Content = PixelCount.ToString();
            
         }
     }
