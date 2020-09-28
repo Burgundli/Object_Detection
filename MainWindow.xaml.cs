@@ -25,6 +25,7 @@ using Emgu.CV.Cuda;
 using Emgu.CV.Reflection;
 using Emgu.CV.Util;
 using Emgu.CV.CvEnum;
+using System.Runtime;
 
 namespace Object_Detection
 {
@@ -109,8 +110,8 @@ namespace Object_Detection
                     {
                         if (((frameDescription.Width*frameDescription.Height) == (kinectBuffer.Size / frameDescription.BytesPerPixel)) && (frameDescription.Width == depthbitmap.PixelWidth) && (frameDescription.Height == depthbitmap.PixelHeight))
                         {
-                            ushort maxDepthValue = 1000;
-                            ushort minDepthValue = 200;
+                            ushort maxDepthValue = 1200;
+                            ushort minDepthValue = 1000;
                             ProcessDepthFrameData(kinectBuffer.UnderlyingBuffer, kinectBuffer.Size, minDepthValue, maxDepthValue);
                             IsFrameProcessed = true;
                         }
@@ -181,7 +182,7 @@ namespace Object_Detection
             var encoder = new BmpBitmapEncoder();                                                                  // - create an encoder for converting to a bmp file  
             encoder.Frames.Add(BitmapFrame.Create(Gray8DepthBmp));                                                 // - adds a frame with the speciefied format to the encoder 
 
-            using (var fileStream = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.Create))
+            using (var fileStream = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.OpenOrCreate))
             {
                 encoder.Save(fileStream);                                                                           // - save the file to the defined path from the encoder 
             }   
@@ -215,44 +216,72 @@ namespace Object_Detection
             byte[] ArrOfPxl = new byte[512 * 424];
             int PixelCount = 0;
             BitmapSource BluredBitmap;
+            Region[] regions = new Region[4]; 
 
+            for (int k = 0; k < 4; k++)
+            {
+                regions[k] = new Region();
+                regions[k].RegionIndex = k + 1; 
+            }
 
-
+            
             // - read image from file calculate centroid based on moments 
             Mat mat = CvInvoke.Imread("C:/Users/CPT Danko/Pictures/capture.png",ImreadModes.AnyColor);             
             Moments moments = CvInvoke.Moments(mat, false);
             System.Drawing.Point WeightedCentroid = new System.Drawing.Point((int)(moments.M10 / moments.M00), (int)(moments.M01 / moments.M00));
             Centroid.Content = WeightedCentroid.X.ToString() + "  " + WeightedCentroid.Y.ToString();
             // - Canny edge recognition based on image contours with Gaussian bluring 
-            var image = new Image<Gray, byte>("C:/Users/CPT Danko/Pictures/capture.png");
-            CvInvoke.GaussianBlur(image, image, new System.Drawing.Size(5, 5), 0);
-            var CannyImage = new UMat();
-            CvInvoke.Canny(image, CannyImage, 50, 100);
-            VectorOfVectorOfPoint ImageContours = new VectorOfVectorOfPoint();
-            CvInvoke.FindContours(CannyImage, ImageContours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
-            var imageContours = new Image<Gray, byte>(image.Width, image.Height, new Gray(0));
-            CvInvoke.DrawContours(imageContours, ImageContours, -1, new MCvScalar(255, 0, 0));
-            CvInvoke.Circle(imageContours, WeightedCentroid, 5,new MCvScalar(255,0,0));
-            //BluredBitmap = BitmapSourceConvert.ToBitmapSource(image);
+             var image = new Image<Gray, byte>("C:/Users/CPT Danko/Pictures/capture.png");
+             CvInvoke.GaussianBlur(image, image, new System.Drawing.Size(5, 5), 0);
+             var CannyImage = new UMat();
+             CvInvoke.Canny(image, CannyImage, 10, 200);
+             VectorOfVectorOfPoint ImageContours = new VectorOfVectorOfPoint();
+             CvInvoke.FindContours(CannyImage, ImageContours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
+             var imageContours = new Image<Gray, byte>(image.Width, image.Height, new Gray(0));
+             CvInvoke.DrawContours(imageContours, ImageContours, -1, new MCvScalar(255, 0, 0));
+             CvInvoke.Circle(imageContours, WeightedCentroid, 5,new MCvScalar(255,0,0));
+             //BluredBitmap = BitmapSourceConvert.ToBitmapSource(image);
+            
+
+
+
 
 
             // - opens a specific file, decode it using bitmap decoder and copies it to an byte array of pixel values, then draws it to an image
-            //System.IO.Stream imageStreamSource = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.Open, FileAccess.Read, FileShare.Read);
-            //BmpBitmapDecoder decoder = new BmpBitmapDecoder(imageStreamSource, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
-            BitmapSource bitmapSource = BitmapSourceConvert.ToBitmapSource(imageContours); 
+            //- had to clear the filestream somehow 
+            using (System.IO.Stream imageStreamSource = new FileStream("C:/Users/CPT Danko/Pictures/capture.png", FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                BmpBitmapDecoder decoder = new BmpBitmapDecoder(imageStreamSource, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
+                BitmapSource bitmapSource = decoder.Frames[0];
+                bitmapSource.CopyPixels(ArrOfPxl, 512, 0);
+                
+            }
             
-            //bitmapSource.CopyPixels(ArrOfPxl, 512, 0);
+
 
             //draw a black dot a the centre of a shape 
-            //WriteableBitmap CentroidBitmap = new WriteableBitmap(frameDescription.Width, frameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
-            //ArrOfPxl[(WeightedCentroid.Y * 512) + WeightedCentroid.X] = 255;
-            //CentroidBitmap.WritePixels(new Int32Rect(0, 0, CentroidBitmap.PixelWidth, CentroidBitmap.PixelHeight), ArrOfPxl, CentroidBitmap.PixelWidth, 0);
-            LoadCapture.Source =bitmapSource;
+            WriteableBitmap CentroidBitmap = new WriteableBitmap(frameDescription.Width, frameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
+
+            for (int j = 0; j< 10;j++ ) {
+
+                ArrOfPxl[(WeightedCentroid.Y * 512) + WeightedCentroid.X+j] = 0;
+                ArrOfPxl[(WeightedCentroid.Y * 512) + WeightedCentroid.X - j] = 0;
+                ArrOfPxl[((WeightedCentroid.Y+j) * 512) + WeightedCentroid.X] = 0;
+                ArrOfPxl[((WeightedCentroid.Y-j) * 512) + WeightedCentroid.X ] = 0;
+
+            }
+
+            CentroidBitmap.WritePixels(new Int32Rect(0, 0, CentroidBitmap.PixelWidth, CentroidBitmap.PixelHeight), ArrOfPxl, CentroidBitmap.PixelWidth, 0);
+            LoadCapture.Source = CentroidBitmap;
+
 
             // count pixels in the loaded image
             PixelCount = ArrOfPxl.Count(n => n != 0);
-            MyLabel.Content = PixelCount.ToString();
-           
+            //MyLabel.Content = PixelCount.ToString();
+            regions[1].RegionPixelCoun = ArrOfPxl.Where((s, i) => i < (512*WeightedCentroid.Y + WeightedCentroid.X)).Count(n => n != 0);
+            MyLabel.Content = regions[1].RegionPixelCoun.ToString();
+
+
         }
     }
 }
