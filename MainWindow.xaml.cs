@@ -299,6 +299,7 @@ namespace Object_Detection
 
             //draw a black dot a the centre of a shape 
             WriteableBitmap CentroidBitmap = new WriteableBitmap(frameDescription.Width, frameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
+
             CentroidBitmap.WritePixels(new Int32Rect(0, 0, CentroidBitmap.PixelWidth, CentroidBitmap.PixelHeight), ArrOfPxl, CentroidBitmap.PixelWidth, 0);
             LoadCapture.Source = BluredBitmap;
 
@@ -306,7 +307,7 @@ namespace Object_Detection
             // count pixels in the loaded image
             PixelCount = ArrOfPxl.Count(n => n != 0);
             //MyLabel.Content = PixelCount.ToString();
-            regions[1].RegionPixelCoun = ArrOfPxl.Where(s => s);
+            regions[1].RegionPixelCoun = ArrOfPxl.Where((s, i) => i < (512*WeightedCentroid.Y + WeightedCentroid.X)).Count(n => n != 0);
             MyLabel.Content = regions[1].RegionPixelCoun.ToString();
 
 
