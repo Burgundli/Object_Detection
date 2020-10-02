@@ -26,6 +26,10 @@ using Emgu.CV.Reflection;
 using Emgu.CV.Util;
 using Emgu.CV.CvEnum;
 using System.Runtime;
+using Point = System.Drawing.Point;
+using Color = System.Drawing.Color;
+using Emgu.CV.Features2D;
+using System.Windows.Media.Media3D;
 
 namespace Object_Detection
 {
@@ -110,8 +114,8 @@ namespace Object_Detection
                     {
                         if (((frameDescription.Width*frameDescription.Height) == (kinectBuffer.Size / frameDescription.BytesPerPixel)) && (frameDescription.Width == depthbitmap.PixelWidth) && (frameDescription.Height == depthbitmap.PixelHeight))
                         {
-                            ushort maxDepthValue = 1200;
-                            ushort minDepthValue = 1000;
+                            ushort maxDepthValue = 1000;
+                            ushort minDepthValue = 200;
                             ProcessDepthFrameData(kinectBuffer.UnderlyingBuffer, kinectBuffer.Size, minDepthValue, maxDepthValue);
                             IsFrameProcessed = true;
                         }
@@ -237,10 +241,44 @@ namespace Object_Detection
              CvInvoke.Canny(image, CannyImage, 10, 200);
              VectorOfVectorOfPoint ImageContours = new VectorOfVectorOfPoint();
              CvInvoke.FindContours(CannyImage, ImageContours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
-             var imageContours = new Image<Gray, byte>(image.Width, image.Height, new Gray(0));
-             CvInvoke.DrawContours(imageContours, ImageContours, -1, new MCvScalar(255, 0, 0));
-             CvInvoke.Circle(imageContours, WeightedCentroid, 5,new MCvScalar(255,0,0));
-             //BluredBitmap = BitmapSourceConvert.ToBitmapSource(image);
+            VectorOfPoint AppContour = new VectorOfPoint(2);
+
+            for (int k= 0;k < ImageContours.Size; k++)
+            {
+                VectorOfPoint contour = ImageContours[k];
+                
+
+               if (CvInvoke.ContourArea(contour) > CvInvoke.ContourArea(AppContour))
+                {
+                    AppContour = contour; 
+                }
+               
+            }
+            RotatedRect rotatedRect = CvInvoke.MinAreaRect(AppContour);
+            CvInvoke.Polylines(image, Array.ConvertAll(rotatedRect.GetVertices(), Point.Round), true, new MCvScalar(255, 0, 0), 2);
+            System.Drawing.PointF direction, pointOnLine;
+            System.Drawing.PointF[] line = new System.Drawing.PointF[AppContour.ToArray().Length];
+            for (int i = 0;i<AppContour.ToArray().Length; i++)
+            {
+                line[i].X = (float)AppContour.ToArray()[i].X;
+                line[i].Y = (float)AppContour.ToArray()[i].Y; 
+
+            }
+            
+            CvInvoke.FitLine(line, out direction , out pointOnLine ,Emgu.CV.CvEnum.DistType.L2, 0, 0.1, 0.1);
+            int left = (int)((-pointOnLine.X * direction.Y / direction.X) + pointOnLine.Y);
+            int right = (int)(((512 - pointOnLine.X) * direction.Y / direction.X) + pointOnLine.Y);
+            CvInvoke.Line(image,WeightedCentroid, new Point(0,left),new MCvScalar(255,0,0),2);
+            CvInvoke.Line(image, new Point(511, right), WeightedCentroid, new MCvScalar(255, 0, 0), 2);
+
+
+            float angle = rotatedRect.Angle;
+            RectAngle.Content = angle.ToString();
+            
+             //var imageContours = new Image<Gray, byte>(image.Width, image.Height, new Gray(0));
+             //CvInvoke.DrawContours(CannyImage, ImageContours, -1, new MCvScalar(255, 0, 0));
+             CvInvoke.Circle(image, WeightedCentroid, 2,new MCvScalar(0,255,255));
+             BluredBitmap = BitmapSourceConvert.ToBitmapSource(image);
             
 
 
@@ -261,24 +299,14 @@ namespace Object_Detection
 
             //draw a black dot a the centre of a shape 
             WriteableBitmap CentroidBitmap = new WriteableBitmap(frameDescription.Width, frameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
-
-            for (int j = 0; j< 10;j++ ) {
-
-                ArrOfPxl[(WeightedCentroid.Y * 512) + WeightedCentroid.X+j] = 0;
-                ArrOfPxl[(WeightedCentroid.Y * 512) + WeightedCentroid.X - j] = 0;
-                ArrOfPxl[((WeightedCentroid.Y+j) * 512) + WeightedCentroid.X] = 0;
-                ArrOfPxl[((WeightedCentroid.Y-j) * 512) + WeightedCentroid.X ] = 0;
-
-            }
-
             CentroidBitmap.WritePixels(new Int32Rect(0, 0, CentroidBitmap.PixelWidth, CentroidBitmap.PixelHeight), ArrOfPxl, CentroidBitmap.PixelWidth, 0);
-            LoadCapture.Source = CentroidBitmap;
+            LoadCapture.Source = BluredBitmap;
 
 
             // count pixels in the loaded image
             PixelCount = ArrOfPxl.Count(n => n != 0);
             //MyLabel.Content = PixelCount.ToString();
-            regions[1].RegionPixelCoun = ArrOfPxl.Where((s, i) => i < (512*WeightedCentroid.Y + WeightedCentroid.X)).Count(n => n != 0);
+            regions[1].RegionPixelCoun = ArrOfPxl.Where(s => s);
             MyLabel.Content = regions[1].RegionPixelCoun.ToString();
 
 

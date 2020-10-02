@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Object_Detection"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800" Closing="Window_Closing">
+        Title="MainWindow" Height="464.4" Width="800" Closing="Window_Closing">
     <Grid>
 
         <StatusBar HorizontalAlignment="Left" Height="26" Margin="34,364,0,0" VerticalAlignment="Top" Width="150">
@@ -33,6 +33,8 @@
         <Label Content="Loaded Image pixel count:" HorizontalAlignment="Left" Margin="407,19,0,0" VerticalAlignment="Top"/>
         <Label x:Name="Centroid" Content="Label" HorizontalAlignment="Left" Margin="648,364,0,0" VerticalAlignment="Top" Width="89"/>
         <Label Content="Centroid coordinates :" HorizontalAlignment="Left" Margin="516,364,0,0" VerticalAlignment="Top"/>
+        <Label Content="Angle :" HorizontalAlignment="Left" Margin="526,395,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="RectAngle" Content="Label" HorizontalAlignment="Left" Margin="587,397,0,0" VerticalAlignment="Top"/>
 
 
     </Grid>
