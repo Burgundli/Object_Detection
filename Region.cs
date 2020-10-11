@@ -8,7 +8,9 @@ namespace Object_Detection
 {
     class Region
     {
-        private int PixelCount;
+        private int PixelCount; 
+        private int Width;
+        private int Height; 
         private int Quadrant;
         private List<byte> Pixels = new List<byte>();
 
@@ -27,29 +29,35 @@ namespace Object_Detection
             }
 
         }
-        public int RegionIndex
-        {
-            get
-            {
-                return RegionIndex;
-            }
 
-            set
-            {
-                Quadrant = value;
-            }
-        }
-        public List<byte> RegionPixels
+        public int RectHeight
         {
-            set
-            {
-                Pixels = value;
-            }
+
             get
             {
-                return Pixels;
+                return Height; 
+
+            }
+            set
+            {
+                Height = value; 
+
             }
 
         }
+
+        public int RectWidth
+        {
+            get
+            {
+                return Width; 
+            }
+            set
+            {
+                Width = value; 
+            }
+        }
+
+       
     }
 }

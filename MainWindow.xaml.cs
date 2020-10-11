@@ -30,6 +30,9 @@ using Point = System.Drawing.Point;
 using Color = System.Drawing.Color;
 using Emgu.CV.Features2D;
 using System.Windows.Media.Media3D;
+using System.Numerics;
+using Emgu.CV.ML;
+using System.Windows.Markup.Localizer;
 
 namespace Object_Detection
 {
@@ -139,7 +142,7 @@ namespace Object_Detection
             for (int i = 0; i < (int)(depthFrameDataSize / frameDescription.BytesPerPixel); ++i)
             {
                 ushort depth = framedata[i];
-                if (depth >= minDepth && depth <= maxDepth && depth != 0)
+                if (depth >= minDepth && depth <= maxDepth && depth != 0 && ((i/512) > 100) && (i / 512 < 324) && ((i-((i/512)*512))>100) && ((i - ((i / 512) * 512)) < 412))
                 {
                     depthpixels[i] = (byte)(256 - (depth / DepthToByte));
                     PixelCount++;
@@ -198,7 +201,7 @@ namespace Object_Detection
             [DllImport("gdi32")]
             private static extern int DeleteObject(IntPtr o);
 
-            public static BitmapSource ToBitmapSource(Image<Gray,byte> image)
+            public static BitmapSource ToBitmapSource(Image<Bgr,byte> image)
             {
                 using (System.Drawing.Bitmap source = image.ToBitmap()) 
                 {
@@ -220,12 +223,12 @@ namespace Object_Detection
             byte[] ArrOfPxl = new byte[512 * 424];
             int PixelCount = 0;
             BitmapSource BluredBitmap;
-            Region[] regions = new Region[4]; 
+            Region[] regions = new Region[5]; 
 
-            for (int k = 0; k < 4; k++)
+            for (int k = 0; k < 5; k++)
             {
                 regions[k] = new Region();
-                regions[k].RegionIndex = k + 1; 
+                
             }
 
             
@@ -236,7 +239,7 @@ namespace Object_Detection
             Centroid.Content = WeightedCentroid.X.ToString() + "  " + WeightedCentroid.Y.ToString();
             // - Canny edge recognition based on image contours with Gaussian bluring 
              var image = new Image<Gray, byte>("C:/Users/CPT Danko/Pictures/capture.png");
-             CvInvoke.GaussianBlur(image, image, new System.Drawing.Size(5, 5), 0);
+             CvInvoke.GaussianBlur(mat, mat, new System.Drawing.Size(5, 5), 0);
              var CannyImage = new UMat();
              CvInvoke.Canny(image, CannyImage, 10, 200);
              VectorOfVectorOfPoint ImageContours = new VectorOfVectorOfPoint();
@@ -255,33 +258,35 @@ namespace Object_Detection
                
             }
             RotatedRect rotatedRect = CvInvoke.MinAreaRect(AppContour);
-            CvInvoke.Polylines(image, Array.ConvertAll(rotatedRect.GetVertices(), Point.Round), true, new MCvScalar(255, 0, 0), 2);
+            //CvInvoke.Polylines(image, Array.ConvertAll(rotatedRect.GetVertices(), Point.Round), true, new MCvScalar(255, 0, 0), 2);
             System.Drawing.PointF direction, pointOnLine;
-            System.Drawing.PointF[] line = new System.Drawing.PointF[AppContour.ToArray().Length];
-            for (int i = 0;i<AppContour.ToArray().Length; i++)
+            System.Drawing.PointF[] line = rotatedRect.GetVertices();
+
+            /*
+             * for (int i = 0;i<AppContour.ToArray().Length; i++)
             {
                 line[i].X = (float)AppContour.ToArray()[i].X;
                 line[i].Y = (float)AppContour.ToArray()[i].Y; 
 
             }
+            */
+
+           
+            CvInvoke.FitLine(line, out direction , out pointOnLine ,Emgu.CV.CvEnum.DistType.L2, 0, 0.01, 0.01);
+            int left = (int)((- pointOnLine.X * direction.Y / direction.X) + pointOnLine.Y);
+            int right = (int)(((image.Width - pointOnLine.X) * direction.Y / direction.X) + pointOnLine.Y);
+
+
+            int normLeft = (int)((-pointOnLine.Y * direction.Y / direction.X) + pointOnLine.X);
+            int normRight = (int)(((image.Width - pointOnLine.Y) * direction.Y / direction.X) + pointOnLine.X);
+
+            //CvInvoke.Line(image, new Point(image.Width -1, right), new Point(0, left), new MCvScalar(255,0,0),1);
+           // CvInvoke.Line(image, new Point( normRight, image.Width - 1), new Point(normLeft, 0), new MCvScalar(255, 0, 0), 1);
+           
             
-            CvInvoke.FitLine(line, out direction , out pointOnLine ,Emgu.CV.CvEnum.DistType.L2, 0, 0.1, 0.1);
-            int left = (int)((-pointOnLine.X * direction.Y / direction.X) + pointOnLine.Y);
-            int right = (int)(((512 - pointOnLine.X) * direction.Y / direction.X) + pointOnLine.Y);
-            CvInvoke.Line(image,WeightedCentroid, new Point(0,left),new MCvScalar(255,0,0),2);
-            CvInvoke.Line(image, new Point(511, right), WeightedCentroid, new MCvScalar(255, 0, 0), 2);
+            LineIterator HorzLine = new LineIterator(mat, new Point(normRight, image.Width - 1), new Point(normLeft, 0));
 
-
-            float angle = rotatedRect.Angle;
-            RectAngle.Content = angle.ToString();
-            
-             //var imageContours = new Image<Gray, byte>(image.Width, image.Height, new Gray(0));
-             //CvInvoke.DrawContours(CannyImage, ImageContours, -1, new MCvScalar(255, 0, 0));
-             CvInvoke.Circle(image, WeightedCentroid, 2,new MCvScalar(0,255,255));
-             BluredBitmap = BitmapSourceConvert.ToBitmapSource(image);
-            
-
-
+            LineIterator VerctLine = new LineIterator(mat, new Point(image.Width - 1, right), new Point(0, left));
 
 
 
@@ -292,9 +297,189 @@ namespace Object_Detection
                 BmpBitmapDecoder decoder = new BmpBitmapDecoder(imageStreamSource, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
                 BitmapSource bitmapSource = decoder.Frames[0];
                 bitmapSource.CopyPixels(ArrOfPxl, 512, 0);
-                
+
             }
+
+
+
+            Point[] buffHorz = new Point[HorzLine.Count];
+            Point[] buffVertic = new Point[VerctLine.Count];
+            int lenght = ArrOfPxl.Count(n => n != 0);
+
+            Point4D[] regionProp = new Point4D[512*424];
+            int counter = 0;
+            Matrix<float> trainsample = new Matrix<float>(512*424, 2);
+            Matrix<float> trainClasses = new Matrix<float>(512*424, 1);
+
+            for (int i = 0; i < rotatedRect.Center.Y; i++)
+            {
+              
+              
+                
+                for (int x = 0; x < 512; x++)
+                {
+                    int[] value = new int[1];
+                    Marshal.Copy(mat.DataPointer + (i * mat.Cols + x) * mat.ElementSize, value, 0, 1);
+
+                    
+                   
+                    
+                    if (x < rotatedRect.Center.X && value[0] !=0)
+                    {
+                        regionProp[i*512+x].Z = 1;
+                        regionProp[i * 512 + x].W = value[0] * regionProp[i * 512 + x].Z;
+                        regionProp[i * 512 + x].X = x;
+                        regionProp[i * 512 + x].X = i;
+                       // image[i, x] = new Bgr(0, 0, 255);
+                    }
+                    else if (x > rotatedRect.Center.X && value[0] != 0)
+                    {
+                        regionProp[i * 512 + x].Z = 2;
+                        regionProp[i * 512 + x].W = value[0] * regionProp[i * 512 + x].Z;
+                        regionProp[i * 512 + x].X = x;
+                        regionProp[i * 512 + x].X = i;
+                       // image[i, x] = new Bgr(120, 120, 120);
+                    }
+                    regionProp[i * 512 + x].X = 0;
+                }
+                 
+            }
+            counter = 0; 
+            for (int l = 0; l <512 ; l++)
+            {
+
+                
+                for (int x = (int)rotatedRect.Center.Y; x < 424; x++)
+                {
+                    int[] value = new int[1];
+                    Marshal.Copy(mat.DataPointer + (x * mat.Cols + l) * mat.ElementSize, value, 0, 1);
+
+                    
+
+
+                    if (l< rotatedRect.Center.X && value[0] != 0)
+                    {
+                        regionProp[x*512+l].W = value[0] * regionProp[x * 512 + l].Z;
+                        regionProp[x * 512 + l  ].Z = 4;
+                        regionProp[x * 512 + l].X = l;
+                        regionProp[x * 512 + l].Y = x;
+                       // image[x, l] = new Bgr(255, 0, 0); 
+
+                    }
+                    else if (l < rotatedRect.Center.X && value[0] != 0)
+                    {
+                        regionProp[x * 512 + l].W = value[0] * regionProp[x * 512 + l].Z;
+                        regionProp[x * 512 + l].Z = 3;
+                        regionProp[x * 512 + l].X = l;
+                        regionProp[x * 512 + l].Y = x;
+                       // image[x, l] = new Bgr(0, 255, 0);
+
+
+                    }
+                    regionProp[x * 512 + l].X = 0;
+                }
+
+               
+            }
+
+
+           
+            for (int i = 0;i<ArrOfPxl.Length;i++) 
+            {
+                    trainsample[i, 0] = (float)regionProp[i].W;
+                    trainClasses[i, 0] = (float)regionProp[i].Z;
+
+            }
+
+
+
+           // Matrix<byte> InputArrayMat = new Matrix<byte>(512, 424);
+            List <System.Drawing.PointF> Input = new List<System.Drawing.PointF>(); 
+           // mat.CopyTo(InputArrayMat);
+            double cnt = 0;
+            double min, max;
+            Point minP, maxP; 
+            //InputArrayMat.MinMax( out min,out max,out minP,out maxP); 
             
+            
+            for (int y=0; y<mat.Size.Height; y++)
+            {
+                for (int x = 0; x < mat.Size.Width; x++)
+                {
+                    int[] value = new int[1];
+                    Marshal.Copy(mat.DataPointer + (y * mat.Cols + x) * mat.ElementSize, value, 0, 1); 
+                    if (value[0] != 0)
+
+                        Input.Add(new System.Drawing.PointF(x,y));
+                        
+
+                }
+            }
+            System.Drawing.PointF[] newInput = Input.ToArray();
+            float[,] floatInput = new float[newInput.Length,2]; 
+            for (int k=0; k < newInput.Length; k++)
+            {
+                floatInput[k,0] = newInput[k].X;
+                floatInput[k,1] = newInput[k].Y;
+            }
+            Matrix<float> FinalInput = new Matrix<float>(floatInput);
+
+            Matrix<int> labels = new Matrix<int>(FinalInput.Size.Height,1);
+            
+           
+
+            double compactness = CvInvoke.Kmeans(FinalInput, 4, labels, new MCvTermCriteria(200,0.5), 100,0);
+            Image<Bgr, byte> OutputImage = new Image<Bgr,byte>(512, 424);
+
+
+            for (int k = 0; k < FinalInput.Size.Height; k++)
+
+            {
+                switch (labels[k, 0]) {
+
+
+                    case 0:  
+                        OutputImage[(int)FinalInput[k, 1], (int)FinalInput[k, 0]] = new Bgr(255, 0, 0);
+                        break;
+                    case 1:
+                        OutputImage[(int)FinalInput[k, 1], (int)FinalInput[k, 0]] = new Bgr(0, 255, 0);
+                        break;
+                    case 2:
+                        OutputImage[(int)FinalInput[k, 1], (int)FinalInput[k, 0]] = new Bgr(0, 0, 255);
+                        break;
+                    case 3:
+                        OutputImage[(int)FinalInput[k, 1], (int)FinalInput[k, 0]] = new Bgr(51, 255, 246);
+                        break;
+                }
+
+            }
+
+            float[] region = new float[labels.Width];
+
+            //labels.CopyTo(region); 
+            
+
+            float angle = rotatedRect.Angle;
+            RectAngle.Content = image.Width.ToString();
+
+           
+
+            
+          
+            
+
+
+
+            //var imageContours = new Image<Gray, byte>(image.Width, image.Height, new Gray(0));
+            //CvInvoke.DrawContours(CannyImage, ImageContours, -1, new MCvScalar(255, 0, 0));
+            CvInvoke.Circle(image,new Point( (int)pointOnLine.X, (int)pointOnLine.Y), 2,new MCvScalar(0,255,255));
+             BluredBitmap = BitmapSourceConvert.ToBitmapSource(OutputImage);
+            
+
+
+
+
+
 
 
             //draw a black dot a the centre of a shape 
@@ -308,9 +493,12 @@ namespace Object_Detection
             PixelCount = ArrOfPxl.Count(n => n != 0);
             //MyLabel.Content = PixelCount.ToString();
             regions[1].RegionPixelCoun = ArrOfPxl.Where((s, i) => i < (512*WeightedCentroid.Y + WeightedCentroid.X)).Count(n => n != 0);
-            MyLabel.Content = regions[1].RegionPixelCoun.ToString();
+            MyLabel.Content ="";
 
 
         }
+             
+
     }
+    
 }
