@@ -6,58 +6,89 @@ using System.Threading.Tasks;
 
 namespace Object_Detection
 {
-    class Region
+    class Object
     {
-        private int PixelCount; 
-        private int Width;
-        private int Height; 
-        private int Quadrant;
-        private List<byte> Pixels = new List<byte>();
+        private int R1 = 0;
+        private int R2 = 0;
+        private int R3 = 0;
+        private int R4 = 0;
+        private int PxlCnt = 0; 
 
-        public int RegionPixelCoun
+
+        public int Region1PixelCnt
         {
             get
             {
-                return PixelCount;
+                return R1;
 
             }
             set
             {
 
-                PixelCount = value;
+                R1 = value;
 
             }
 
         }
-
-        public int RectHeight
+        public int Region2PixelCnt
         {
-
             get
             {
-                return Height; 
+                return R2;
 
             }
             set
             {
-                Height = value; 
+
+                R2 = value;
 
             }
 
         }
-
-        public int RectWidth
+        public int Region3PixelCnt
         {
             get
             {
-                return Width; 
+                return R3;
+
             }
             set
             {
-                Width = value; 
-            }
-        }
 
-       
+                R3 = value;
+
+            }
+
+        }
+        public int Region4PixelCnt
+        {
+            get
+            {
+                return R4;
+
+            }
+            set
+            {
+
+                R4 = value;
+
+            }
+
+        }
+        public int PixelCount
+        {
+            get
+            {
+                return PxlCnt;
+
+            }
+            set
+            {
+
+                PxlCnt = value;
+
+            }
+
+        }
     }
 }

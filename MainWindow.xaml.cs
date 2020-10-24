@@ -117,7 +117,7 @@ namespace Object_Detection
                     {
                         if (((frameDescription.Width*frameDescription.Height) == (kinectBuffer.Size / frameDescription.BytesPerPixel)) && (frameDescription.Width == depthbitmap.PixelWidth) && (frameDescription.Height == depthbitmap.PixelHeight))
                         {
-                            ushort maxDepthValue = 1000;
+                            ushort maxDepthValue = 1500;
                             ushort minDepthValue = 200;
                             ProcessDepthFrameData(kinectBuffer.UnderlyingBuffer, kinectBuffer.Size, minDepthValue, maxDepthValue);
                             IsFrameProcessed = true;
@@ -142,7 +142,7 @@ namespace Object_Detection
             for (int i = 0; i < (int)(depthFrameDataSize / frameDescription.BytesPerPixel); ++i)
             {
                 ushort depth = framedata[i];
-                if (depth >= minDepth && depth <= maxDepth && depth != 0 && ((i/512) > 100) && (i / 512 < 324) && ((i-((i/512)*512))>100) && ((i - ((i / 512) * 512)) < 412))
+                if (depth >= minDepth && depth <= maxDepth && depth != 0 && ((i/512) > 100) && (i / 512 < 253) && ((i-((i/512)*512))>100) && ((i - ((i / 512) * 512)) < 412))
                 {
                     depthpixels[i] = (byte)(256 - (depth / DepthToByte));
                     PixelCount++;
@@ -153,7 +153,7 @@ namespace Object_Detection
                 }
               
             }
-
+           
             MyLabel2.Content = PixelCount.ToString();
         }
         private unsafe  void RenderPixels()
@@ -162,6 +162,7 @@ namespace Object_Detection
    
            
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth,0);
+            
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -223,13 +224,7 @@ namespace Object_Detection
             byte[] ArrOfPxl = new byte[512 * 424];
             int PixelCount = 0;
             BitmapSource BluredBitmap;
-            Region[] regions = new Region[5]; 
-
-            for (int k = 0; k < 5; k++)
-            {
-                regions[k] = new Region();
-                
-            }
+            Object newObj = new Object(); 
 
             
             // - read image from file calculate centroid based on moments 
@@ -239,12 +234,32 @@ namespace Object_Detection
             Centroid.Content = WeightedCentroid.X.ToString() + "  " + WeightedCentroid.Y.ToString();
             // - Canny edge recognition based on image contours with Gaussian bluring 
              var image = new Image<Gray, byte>("C:/Users/CPT Danko/Pictures/capture.png");
-             CvInvoke.GaussianBlur(mat, mat, new System.Drawing.Size(5, 5), 0);
+            // CvInvoke.GaussianBlur(mat, mat, new System.Drawing.Size(5, 5), 0);
              var CannyImage = new UMat();
              CvInvoke.Canny(image, CannyImage, 10, 200);
              VectorOfVectorOfPoint ImageContours = new VectorOfVectorOfPoint();
              CvInvoke.FindContours(CannyImage, ImageContours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
             VectorOfPoint AppContour = new VectorOfPoint(2);
+            VectorOfPoint AppContour2 = new VectorOfPoint(2);
+
+            byte[,,] ImageArray = new byte[512, 424, 1];
+            for (int x = 0; x < 512; x++)
+            {
+                for (int y = 0; y < 424; y++)
+                {
+
+                    ImageArray[x, y, 0] = depthpixels[y * 512 + x];
+
+                }
+            }
+
+
+
+            Image<Gray, byte> CapturedImage = new Image<Gray, byte>(ImageArray);
+            var CannyImage2 = new UMat();
+            CvInvoke.Canny(CapturedImage, CannyImage2, 10, 200);
+            VectorOfVectorOfPoint ImageContours2 = new VectorOfVectorOfPoint();
+            CvInvoke.FindContours(CannyImage2, ImageContours2, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
 
             for (int k= 0;k < ImageContours.Size; k++)
             {
@@ -257,6 +272,25 @@ namespace Object_Detection
                 }
                
             }
+
+            for (int k = 0; k < ImageContours2.Size; k++)
+            {
+                VectorOfPoint contour = ImageContours2[k];
+
+
+                if (CvInvoke.ContourArea(contour) > CvInvoke.ContourArea(AppContour))
+                {
+                    AppContour2 = contour;
+                }
+
+            }
+
+            double precision = CvInvoke.MatchShapes(AppContour,AppContour2,ContoursMatchType.I1);
+
+            Precision.Content = precision; 
+
+
+
             RotatedRect rotatedRect = CvInvoke.MinAreaRect(AppContour);
             //CvInvoke.Polylines(image, Array.ConvertAll(rotatedRect.GetVertices(), Point.Round), true, new MCvScalar(255, 0, 0), 2);
             System.Drawing.PointF direction, pointOnLine;
@@ -396,25 +430,30 @@ namespace Object_Detection
            // Matrix<byte> InputArrayMat = new Matrix<byte>(512, 424);
             List <System.Drawing.PointF> Input = new List<System.Drawing.PointF>(); 
            // mat.CopyTo(InputArrayMat);
-            double cnt = 0;
-            double min, max;
-            Point minP, maxP; 
-            //InputArrayMat.MinMax( out min,out max,out minP,out maxP); 
-            
+            double[] cnt;
+            double[] min, max;
+            Point[] minP, maxP;
+            mat.MinMax( out min,out max,out minP,out maxP); 
+            //CvInvoke.Resize(mat, mat,new System.Drawing.Size (1025,768),0,0,Inter.Linear); 
             
             for (int y=0; y<mat.Size.Height; y++)
             {
                 for (int x = 0; x < mat.Size.Width; x++)
                 {
+                    
                     int[] value = new int[1];
-                    Marshal.Copy(mat.DataPointer + (y * mat.Cols + x) * mat.ElementSize, value, 0, 1); 
+                    Marshal.Copy(mat.DataPointer + (y * mat.Cols + x) * mat.ElementSize, value, 0, 1);
+                    
                     if (value[0] != 0)
 
                         Input.Add(new System.Drawing.PointF(x,y));
-                        
+                     
+                    
 
                 }
+                
             }
+            Distance.Content = max[0]; 
             System.Drawing.PointF[] newInput = Input.ToArray();
             float[,] floatInput = new float[newInput.Length,2]; 
             for (int k=0; k < newInput.Length; k++)
@@ -429,7 +468,7 @@ namespace Object_Detection
            
 
             double compactness = CvInvoke.Kmeans(FinalInput, 4, labels, new MCvTermCriteria(200,0.5), 100,0);
-            Image<Bgr, byte> OutputImage = new Image<Bgr,byte>(512, 424);
+            Image<Bgr, byte> OutputImage = new Image<Bgr,byte>(mat.Cols,mat.Rows);
 
 
             for (int k = 0; k < FinalInput.Size.Height; k++)
@@ -440,19 +479,24 @@ namespace Object_Detection
 
                     case 0:  
                         OutputImage[(int)FinalInput[k, 1], (int)FinalInput[k, 0]] = new Bgr(255, 0, 0);
+                        newObj.Region1PixelCnt++; 
                         break;
                     case 1:
                         OutputImage[(int)FinalInput[k, 1], (int)FinalInput[k, 0]] = new Bgr(0, 255, 0);
+                        newObj.Region2PixelCnt++;
                         break;
                     case 2:
                         OutputImage[(int)FinalInput[k, 1], (int)FinalInput[k, 0]] = new Bgr(0, 0, 255);
+                        newObj.Region3PixelCnt++;
                         break;
                     case 3:
                         OutputImage[(int)FinalInput[k, 1], (int)FinalInput[k, 0]] = new Bgr(51, 255, 246);
+                        newObj.Region4PixelCnt++;
                         break;
                 }
-
+                newObj.PixelCount++;
             }
+            
 
             float[] region = new float[labels.Width];
 
@@ -460,13 +504,8 @@ namespace Object_Detection
             
 
             float angle = rotatedRect.Angle;
-            RectAngle.Content = image.Width.ToString();
-
-           
-
             
-          
-            
+
 
 
 
@@ -492,10 +531,12 @@ namespace Object_Detection
             // count pixels in the loaded image
             PixelCount = ArrOfPxl.Count(n => n != 0);
             //MyLabel.Content = PixelCount.ToString();
-            regions[1].RegionPixelCoun = ArrOfPxl.Where((s, i) => i < (512*WeightedCentroid.Y + WeightedCentroid.X)).Count(n => n != 0);
-            MyLabel.Content ="";
-
-
+            
+            MyLabel.Content =PixelCount;
+            R1.Content = newObj.Region1PixelCnt;
+            R2.Content = newObj.Region2PixelCnt;
+            R3.Content = newObj.Region3PixelCnt;
+            R4.Content = newObj.Region4PixelCnt;
         }
              
 
