@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Object_Detection
+﻿namespace Object_Detection
 {
     class Object
     {
@@ -12,7 +6,7 @@ namespace Object_Detection
         private int R2 = 0;
         private int R3 = 0;
         private int R4 = 0;
-        private int PxlCnt = 0; 
+        private int PxlCnt = 0;
 
 
         public int Region1PixelCnt
