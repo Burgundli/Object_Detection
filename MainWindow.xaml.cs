@@ -31,6 +31,7 @@ namespace Object_Detection
         private byte[] depthpixels = null;                  // - intermediate storage for frame datta conveted to color pointer 
         private string KinectStatus = null;                 // - current status of the kinect sensor 
         public Object FrameObj = new Object();
+        public string ObjectProperty = "";
         public MainWindow()
         {
             // Set up of  the Sensor and reader 
@@ -141,6 +142,7 @@ namespace Object_Detection
         private unsafe void RenderPixels()
 
         {
+            FrameObj.Clear();
             Image<Gray, byte> Frame = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             Frame.Bytes = depthpixels;
             Image<Gray, byte> FilteredFrame = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
@@ -237,7 +239,7 @@ namespace Object_Detection
             FrameBitmap = BitmapSourceConvert.ToBitmapSource(FilteredFrame);
             LoadCapture.Source = FrameBitmap;
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth, 0);
-            FrameObj.Clear();
+            FrameObj.CalculateTolerances();
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -262,20 +264,15 @@ namespace Object_Detection
         private void CaptureBtn_Click(object sender, RoutedEventArgs e)
         {
 
-            Window window = new Window
-            {
-                Title = "Object Class Property",
-                Content = new  UserControl1(),
-                Width = 426,
-                Height = 236,
-                Left = Application.Current.MainWindow.Left + 200,
-                Top = Application.Current.MainWindow.Top + 100,
+            ClassLabel classLabel = new ClassLabel();
+            classLabel.Show();
+
+            ObjectProperty = FrameObj.Up_tolerance_R1_R2 +"-"+ FrameObj.Dwn_tolerance_R1_R2 + "     "
+                                         + FrameObj.Up_tolerance_R3_R4 + "-" + FrameObj.Dwn_tolerance_R3_R4 + "     "
+                                         + FrameObj.Up_tolerance_R1_R4 + "-" + FrameObj.Dwn_tolerance_R1_R4 + "     "
+                                         + FrameObj.Up_tolerance_R2_R3 + "-" + FrameObj.Dwn_tolerance_R2_R3 + "     ";
 
 
-            };
-
-
-            window.Show();
 
 
         }
@@ -308,7 +305,18 @@ namespace Object_Detection
 
         }
 
+        public Object GetObject
+        {
+            get
+            {
+                return FrameObj;
+            }
 
+            set
+            {
+                FrameObj = value;
+            }
+        }
 
 
     }

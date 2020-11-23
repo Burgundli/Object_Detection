@@ -1,4 +1,6 @@
-﻿namespace Object_Detection
+﻿using System;
+using static System.Math; 
+namespace Object_Detection
 {
     public class Object
     {
@@ -8,14 +10,14 @@
         private int R4 = 0;
         private int PxlCnt = 0;
 
-        public int Up_tolerance_R1_R2 = 0;
-        public int Up_tolerance_R3_R4 = 0;
-        public int Up_tolerance_R1_R4 = 0;
-        public int Up_tolerance_R2_R3 = 0;
-        public int Dwn_tolerance_R1_R2 = 0;
-        public int Dwn_tolerance_R3_R4 = 0;
-        public int Dwn_tolerance_R1_R4 = 0;
-        public int Dwn_tolerance_R2_R3 = 0;
+        public double Up_tolerance_R1_R2 = 0;
+        public double Up_tolerance_R3_R4 = 0;
+        public double Up_tolerance_R1_R4 = 0;
+        public double Up_tolerance_R2_R3 = 0;
+        public double Dwn_tolerance_R1_R2 = 0;
+        public double Dwn_tolerance_R3_R4 = 0;
+        public double Dwn_tolerance_R1_R4 = 0;
+        public double Dwn_tolerance_R2_R3 = 0;
         public void Clear()
         {
             R1 = 0;
@@ -23,18 +25,44 @@
             R3 = 0;
             R4 = 0;
             PxlCnt = 0;
+            Up_tolerance_R1_R2 = 0;
+            Up_tolerance_R3_R4 = 0;
+            Up_tolerance_R1_R4 = 0;
+            Up_tolerance_R2_R3 = 0;
+            Dwn_tolerance_R1_R2 = 0;
+            Dwn_tolerance_R3_R4 = 0;
+            Dwn_tolerance_R1_R4 = 0;
+            Dwn_tolerance_R2_R3 = 0;
 
         }
         public void CalculateTolerances()
         {
-            Up_tolerance_R1_R2 = (R1 + 20) / (R2 - 20);
-            Up_tolerance_R3_R4 = (R3 + 20) / (R4 - 20);
-            Up_tolerance_R1_R4 = (R1 + 20) / (R4 - 20);
-            Up_tolerance_R2_R3 = (R2 + 20) / (R3 - 20);
-            Dwn_tolerance_R1_R2 = (R1 - 20) / (R2 + 20);
-            Dwn_tolerance_R3_R4 = (R3 - 20) / (R4 + 20);
-            Dwn_tolerance_R1_R4 = (R1 - 20) / (R4 + 20);
-            Dwn_tolerance_R2_R3 = (R2 - 20) / (R3 + 20);
+            if (R1 < 20)
+            {
+                R1 = 21;
+            }
+            else if (R2 < 20)
+            {
+                R2 = 21;
+            }
+            else if (R3 < 20)
+            {
+                R3 = 21;
+            }
+            else if (R4 < 20)
+            {
+                R4 = 21;
+            }
+
+            Up_tolerance_R1_R2 = Round((double)(R1 + 20) / (R2 - 20),3);
+            Up_tolerance_R3_R4 = Round((double)(R3 + 20) / (R4 - 20), 3);
+            Up_tolerance_R1_R4 = Round((double)(R1 + 20) / (R4 - 20), 3);
+            Up_tolerance_R2_R3 = Round((double)(R2 + 20) / (R3 - 20), 3);
+            Dwn_tolerance_R1_R2 = Round((double)(R1 - 20) / (R2 + 20), 3);
+            Dwn_tolerance_R3_R4 = Round((double)(R3 - 20) / (R4 + 20), 3);
+            Dwn_tolerance_R1_R4 = Round((double)(R1 - 20) / (R4 + 20), 3);
+            Dwn_tolerance_R2_R3 = Round((double)(R2 - 20) / (R3 + 20), 3);
+
         }
         public int Region1PixelCnt
         {
