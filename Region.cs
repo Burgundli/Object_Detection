@@ -1,5 +1,4 @@
-﻿using System;
-using static System.Math; 
+﻿using static System.Math;
 namespace Object_Detection
 {
     public class Object
@@ -54,7 +53,7 @@ namespace Object_Detection
                 R4 = 21;
             }
 
-            Up_tolerance_R1_R2 = Round((double)(R1 + 20) / (R2 - 20),3);
+            Up_tolerance_R1_R2 = Round((double)(R1 + 20) / (R2 - 20), 3);
             Up_tolerance_R3_R4 = Round((double)(R3 + 20) / (R4 - 20), 3);
             Up_tolerance_R1_R4 = Round((double)(R1 + 20) / (R4 - 20), 3);
             Up_tolerance_R2_R3 = Round((double)(R2 + 20) / (R3 - 20), 3);

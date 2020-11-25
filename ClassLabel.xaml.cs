@@ -25,6 +25,7 @@ namespace Object_Detection
         private void Button_Click(object sender, RoutedEventArgs e)
         {
 
+            Object FrmObject = ((MainWindow)Application.Current.MainWindow).FrameObj;
 
             var Gray8DepthBmp = new FormatConvertedBitmap(((MainWindow)Application.Current.MainWindow).depthbitmap, PixelFormats.Gray8, null, 0d);    // - create a new formated bitmap for saving the image to the file 
             var encoder = new BmpBitmapEncoder();                                                                  // - create an encoder for converting to a bmp file  
@@ -47,7 +48,11 @@ namespace Object_Detection
 
             }
 
-            ((MainWindow)Application.Current.MainWindow).ObjectProperty = ((MainWindow)Application.Current.MainWindow).ObjectProperty + ClassBox.Text + "   " + "   " + path;
+            ((MainWindow)Application.Current.MainWindow).ObjectProperty = ClassBox.Text + " " + path + " " + FrmObject.Up_tolerance_R1_R2 + "-" + FrmObject.Dwn_tolerance_R1_R2 + " "
+                                                                                                                                                                             + FrmObject.Up_tolerance_R3_R4 + "-" + FrmObject.Dwn_tolerance_R3_R4 + " "
+                                                                                                                                                                             + FrmObject.Up_tolerance_R1_R4 + "-" + FrmObject.Dwn_tolerance_R1_R4 + " "
+                                                                                                                                                                             + FrmObject.Up_tolerance_R2_R3 + "-" + FrmObject.Dwn_tolerance_R2_R3 + " "
+                                                                                                                                                                             + FrmObject.PixelCount + " "; 
             File.AppendAllText("C:/Users/CPT Danko/Pictures/ObjectValues.txt", ((MainWindow)Application.Current.MainWindow).ObjectProperty + Environment.NewLine);
             this.Close();
 

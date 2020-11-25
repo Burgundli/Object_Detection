@@ -6,6 +6,7 @@ using Microsoft.Kinect;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -94,7 +95,7 @@ namespace Object_Detection
             bool IsFrameProcessed = false;
             using (DepthFrame depthFrame = e.FrameReference.AcquireFrame())
             {
-                if (depthFrame != null)
+                if (depthFrame != null && !Application.Current.Windows.OfType<Window>().Any(w => w.Name.Equals("ClassLabelWin")))
                 {
                     using (KinectBuffer kinectBuffer = depthFrame.LockImageBuffer())
                     {
@@ -240,6 +241,7 @@ namespace Object_Detection
             LoadCapture.Source = FrameBitmap;
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth, 0);
             FrameObj.CalculateTolerances();
+            Precision.Content = ClassifyObject(FrameObj); 
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -266,11 +268,6 @@ namespace Object_Detection
 
             ClassLabel classLabel = new ClassLabel();
             classLabel.Show();
-
-            ObjectProperty = FrameObj.Up_tolerance_R1_R2 +"-"+ FrameObj.Dwn_tolerance_R1_R2 + "     "
-                                         + FrameObj.Up_tolerance_R3_R4 + "-" + FrameObj.Dwn_tolerance_R3_R4 + "     "
-                                         + FrameObj.Up_tolerance_R1_R4 + "-" + FrameObj.Dwn_tolerance_R1_R4 + "     "
-                                         + FrameObj.Up_tolerance_R2_R3 + "-" + FrameObj.Dwn_tolerance_R2_R3 + "     ";
 
 
 
@@ -304,19 +301,40 @@ namespace Object_Detection
 
 
         }
-
-        public Object GetObject
+        private string ClassifyObject(Object ClassificatedObj)
         {
-            get
-            {
-                return FrameObj;
-            }
+            string Class = "";
+            
 
-            set
-            {
-                FrameObj = value;
+            if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count() != 0 ) {
+                for (int line = 0; line < File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count(); line++)
+                {
+                    
+                    if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line] != "") {
+                        Int32 TotalPixels = Int32.Parse(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split(' ')[6]);
+                        if ( (TotalPixels + 50) > ClassificatedObj.PixelCount && (TotalPixels - 50) < ClassificatedObj.PixelCount )
+                        {
+
+                            Class = File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split(' ')[0];
+                            break; 
+
+
+
+
+                        }
+                        else
+                        {
+                            Class = "Not Identified";
+                        }
+                    }
+
+
+                }
             }
+            return Class;
+
         }
+
 
 
     }
