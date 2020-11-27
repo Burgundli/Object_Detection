@@ -9,6 +9,10 @@ namespace Object_Detection
         private int R4 = 0;
         private int PxlCnt = 0;
 
+        public double ratio1 = 0;
+        public double ratio2 = 0;
+        public double ratio3 = 0;
+        public double ratio4 = 0;
         public double Up_tolerance_R1_R2 = 0;
         public double Up_tolerance_R3_R4 = 0;
         public double Up_tolerance_R1_R4 = 0;
@@ -17,6 +21,7 @@ namespace Object_Detection
         public double Dwn_tolerance_R3_R4 = 0;
         public double Dwn_tolerance_R1_R4 = 0;
         public double Dwn_tolerance_R2_R3 = 0;
+        private const int tolerance = 20; 
         public void Clear()
         {
             R1 = 0;
@@ -36,31 +41,36 @@ namespace Object_Detection
         }
         public void CalculateTolerances()
         {
-            if (R1 < 20)
+            if (R1 < tolerance)
             {
-                R1 = 21;
+                R1 = tolerance+1;
             }
-            else if (R2 < 20)
+            else if (R2 < tolerance)
             {
-                R2 = 21;
+                R2 = tolerance + 1;
             }
-            else if (R3 < 20)
+            else if (R3 < tolerance)
             {
-                R3 = 21;
+                R3 = tolerance + 1;
             }
-            else if (R4 < 20)
+            else if (R4 < tolerance)
             {
-                R4 = 21;
+                R4 = tolerance + 1;
             }
 
-            Up_tolerance_R1_R2 = Round((double)(R1 + 20) / (R2 - 20), 3);
-            Up_tolerance_R3_R4 = Round((double)(R3 + 20) / (R4 - 20), 3);
-            Up_tolerance_R1_R4 = Round((double)(R1 + 20) / (R4 - 20), 3);
-            Up_tolerance_R2_R3 = Round((double)(R2 + 20) / (R3 - 20), 3);
-            Dwn_tolerance_R1_R2 = Round((double)(R1 - 20) / (R2 + 20), 3);
-            Dwn_tolerance_R3_R4 = Round((double)(R3 - 20) / (R4 + 20), 3);
-            Dwn_tolerance_R1_R4 = Round((double)(R1 - 20) / (R4 + 20), 3);
-            Dwn_tolerance_R2_R3 = Round((double)(R2 - 20) / (R3 + 20), 3);
+            ratio1 = (double)(R1) / (R2);
+            ratio2 = (double)(R3) / (R4);
+            ratio3 = (double)(R1) / (R4);
+            ratio4 = (double)(R2) / (R3); 
+
+            Up_tolerance_R1_R2 = Round((double)(R1 + tolerance) / (R2 - tolerance), 3);
+            Up_tolerance_R3_R4 = Round((double)(R3 + tolerance) / (R4 - tolerance), 3);
+            Up_tolerance_R1_R4 = Round((double)(R1 + tolerance) / (R4 - tolerance), 3);
+            Up_tolerance_R2_R3 = Round((double)(R2 + tolerance) / (R3 - tolerance), 3);
+            Dwn_tolerance_R1_R2 = Round((double)(R1 - tolerance) / (R2 + tolerance), 3);
+            Dwn_tolerance_R3_R4 = Round((double)(R3 - tolerance) / (R4 + tolerance), 3);
+            Dwn_tolerance_R1_R4 = Round((double)(R1 - tolerance) / (R4 + tolerance), 3);
+            Dwn_tolerance_R2_R3 = Round((double)(R2 - tolerance) / (R3 + tolerance), 3);
 
         }
         public int Region1PixelCnt

@@ -48,11 +48,11 @@ namespace Object_Detection
 
             }
 
-            ((MainWindow)Application.Current.MainWindow).ObjectProperty = ClassBox.Text + " " + path + " " + FrmObject.Up_tolerance_R1_R2 + "-" + FrmObject.Dwn_tolerance_R1_R2 + " "
-                                                                                                                                                                             + FrmObject.Up_tolerance_R3_R4 + "-" + FrmObject.Dwn_tolerance_R3_R4 + " "
-                                                                                                                                                                             + FrmObject.Up_tolerance_R1_R4 + "-" + FrmObject.Dwn_tolerance_R1_R4 + " "
-                                                                                                                                                                             + FrmObject.Up_tolerance_R2_R3 + "-" + FrmObject.Dwn_tolerance_R2_R3 + " "
-                                                                                                                                                                             + FrmObject.PixelCount + " "; 
+            ((MainWindow)Application.Current.MainWindow).ObjectProperty = ClassBox.Text + "*" + path + "*" + FrmObject.Up_tolerance_R1_R2 + "-" + FrmObject.Dwn_tolerance_R1_R2 + "*"
+                                                                                                                                                                             + FrmObject.Up_tolerance_R3_R4 + "-" + FrmObject.Dwn_tolerance_R3_R4 + "*"
+                                                                                                                                                                             + FrmObject.Up_tolerance_R1_R4 + "-" + FrmObject.Dwn_tolerance_R1_R4 + "*"
+                                                                                                                                                                             + FrmObject.Up_tolerance_R2_R3 + "-" + FrmObject.Dwn_tolerance_R2_R3 + "*"
+                                                                                                                                                                             + FrmObject.PixelCount;
             File.AppendAllText("C:/Users/CPT Danko/Pictures/ObjectValues.txt", ((MainWindow)Application.Current.MainWindow).ObjectProperty + Environment.NewLine);
             this.Close();
 

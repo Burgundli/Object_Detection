@@ -148,7 +148,7 @@ namespace Object_Detection
             Frame.Bytes = depthpixels;
             Image<Gray, byte> FilteredFrame = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             CvInvoke.BilateralFilter(Frame, FilteredFrame, 9, 140, 140);
-            var FrameCannyImage = new UMat();
+            UMat FrameCannyImage = new UMat();
             CvInvoke.Canny(FilteredFrame, FrameCannyImage, 10, 200);
             VectorOfVectorOfPoint FrameImageContours = new VectorOfVectorOfPoint();
             CvInvoke.FindContours(FrameCannyImage, FrameImageContours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
@@ -241,7 +241,8 @@ namespace Object_Detection
             LoadCapture.Source = FrameBitmap;
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth, 0);
             FrameObj.CalculateTolerances();
-            Precision.Content = ClassifyObject(FrameObj); 
+            Precision.Content = ClassifyObject(FrameObj);
+
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -304,19 +305,31 @@ namespace Object_Detection
         private string ClassifyObject(Object ClassificatedObj)
         {
             string Class = "";
-            
 
-            if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count() != 0 ) {
+
+            if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count() != 0)
+            {
                 for (int line = 0; line < File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count(); line++)
                 {
-                    
-                    if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line] != "") {
-                        Int32 TotalPixels = Int32.Parse(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split(' ')[6]);
-                        if ( (TotalPixels + 50) > ClassificatedObj.PixelCount && (TotalPixels - 50) < ClassificatedObj.PixelCount )
+                    double[,] Ratios = GetObjectRanges(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')); 
+
+                    if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line] != "")
+                    {
+
+                        Int32 TotalPixels = Int32.Parse(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')[6]);
+
+                        if (
+                            Ratios[0,0] > ClassificatedObj.ratio1 && ClassificatedObj.ratio1 > Ratios[1,0]
+                             && Ratios[0, 1] > ClassificatedObj.ratio2 && ClassificatedObj.ratio2 > Ratios[1, 1]
+                              && Ratios[0, 2] > ClassificatedObj.ratio3 && ClassificatedObj.ratio3 > Ratios[1, 2]
+                               && Ratios[0, 3] > ClassificatedObj.ratio4 && ClassificatedObj.ratio4 > Ratios[1, 3]
+                              )
                         {
 
-                            Class = File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split(' ')[0];
-                            break; 
+                        
+
+                            Class = File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')[0];
+                            break;
 
 
 
@@ -332,6 +345,30 @@ namespace Object_Detection
                 }
             }
             return Class;
+
+        }
+        private double[,] GetObjectRanges(string[] ObjectLine)
+        {
+            double[,] rationRange = new double[2, 4];
+            if (ObjectLine.Length != 1)
+
+            {
+                
+                rationRange[0, 0] = Max(Convert.ToDouble((ObjectLine[2]).Split('-')[0]), Convert.ToDouble((ObjectLine[2]).Split('-')[1]));       // Upper tolerance value R1-R2
+                rationRange[1, 0] = Min(Convert.ToDouble((ObjectLine[2]).Split('-')[0]), Convert.ToDouble((ObjectLine[2]).Split('-')[1]));      // Lower tolerance value R1- R2
+
+                rationRange[0, 1] = Max(Convert.ToDouble((ObjectLine[3]).Split('-')[0]), Convert.ToDouble((ObjectLine[3]).Split('-')[1]));       // Upper tolerance value R2-R3
+                rationRange[1, 1] = Min(Convert.ToDouble((ObjectLine[3]).Split('-')[0]), Convert.ToDouble((ObjectLine[3]).Split('-')[1]));       // Lower tolerance value R2- R3
+
+                rationRange[0, 2] = Max(Convert.ToDouble((ObjectLine[4]).Split('-')[0]), Convert.ToDouble((ObjectLine[4]).Split('-')[1]));      // Upper tolerance value R1-R4
+                rationRange[1, 2] = Min(Convert.ToDouble((ObjectLine[4]).Split('-')[0]), Convert.ToDouble((ObjectLine[4]).Split('-')[1]));      // Lower tolerance value R1- R4
+
+                rationRange[0, 3] = Max(Convert.ToDouble((ObjectLine[5]).Split('-')[0]), Convert.ToDouble((ObjectLine[5]).Split('-')[1]));      // Upper tolerance value R2-R3
+                rationRange[1, 3] = Min(Convert.ToDouble((ObjectLine[5]).Split('-')[0]), Convert.ToDouble((ObjectLine[5]).Split('-')[1]));      // Lower tolerance value R2- R3
+            
+            }
+
+            return rationRange;
 
         }
 
