@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Object_Detection"
         mc:Ignorable="d"
-        Title="MainWindow" Height="475.6" Width="800" Closing="Window_Closing">
+        Title="MainWindow" Height="669" Width="800" Closing="Window_Closing">
     <Grid Margin="0,0,-0.4,-7.4">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="207*"/>
@@ -48,8 +48,14 @@
         <Label Content="R2:" HorizontalAlignment="Left" Margin="135,407,0,0" VerticalAlignment="Top"/>
         <Label Content="R4:" HorizontalAlignment="Left" Margin="338,407,0,0" VerticalAlignment="Top" RenderTransformOrigin="-1.573,0.383"/>
         <Label x:Name="R3" Content="0" HorizontalAlignment="Left" Margin="275,407,0,0" VerticalAlignment="Top"/>
-        <Label x:Name="R4" Content="0" HorizontalAlignment="Left" Margin="379,407,0,0" VerticalAlignment="Top" RenderTransformOrigin="-1.573,0.383"/>
-        <Label x:Name="Precision" Content="Label" HorizontalAlignment="Left" Margin="25.4,407,0,0" VerticalAlignment="Top" Grid.Column="1"/>
+        <Label x:Name="R4" Content="0" HorizontalAlignment="Left" Margin="379,407,0,0" VerticalAlignment="Top" RenderTransformOrigin="-1.573,0.383" Width="34"/>
+        <Label x:Name="Precision" Content="Label" HorizontalAlignment="Left" Margin="90,561,0,0" VerticalAlignment="Top" Width="71"/>
+        <Slider x:Name="CropXSlide" Grid.Column="1" HorizontalAlignment="Left" Margin="79.4,499,0,0" VerticalAlignment="Top" Width="243" Maximum="500" Minimum="150"/>
+        <Slider x:Name="CropYSlide" Grid.Column="1" HorizontalAlignment="Left" Margin="79.4,569,0,0" VerticalAlignment="Top" Width="243" Maximum="400" Minimum="150"/>
+        <Slider x:Name="TreshSlide" HorizontalAlignment="Left" Margin="65,499,0,0" VerticalAlignment="Top" Width="243" Minimum="1000" Maximum="1800"/>
+        <Label Content="Treshold" HorizontalAlignment="Left" Margin="65,468,0,0" VerticalAlignment="Top"/>
+        <Label Content="Crop X" HorizontalAlignment="Left" Margin="79.4,468,0,0" VerticalAlignment="Top" Grid.Column="1"/>
+        <Label Content="Crop Y" HorizontalAlignment="Left" Margin="79.4,538,0,0" VerticalAlignment="Top" Grid.Column="1"/>
 
 
     </Grid>

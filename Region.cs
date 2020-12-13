@@ -21,7 +21,7 @@ namespace Object_Detection
         public double Dwn_tolerance_R3_R4 = 0;
         public double Dwn_tolerance_R1_R4 = 0;
         public double Dwn_tolerance_R2_R3 = 0;
-        private const int tolerance = 20; 
+        private const int tolerance = 50; 
         public void Clear()
         {
             R1 = 0;

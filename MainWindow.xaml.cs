@@ -26,7 +26,7 @@ namespace Object_Detection
 
         private const int DepthToByte = 8000 / 256;        // - constant for conversion from depth distance in meters to 256 byte format 
         private KinectSensor kinectSensor = null;           // - variable reporesenting the active sensor 
-        private DepthFrameReader depthFrameReader = null;   // - variable representing the depth frame reader 
+        public DepthFrameReader depthFrameReader = null;   // - variable representing the depth frame reader 
         private FrameDescription frameDescription = null;   // - description of the data contained in the depth frame 
         public WriteableBitmap depthbitmap = null;         // - bitmap for displaying image 
         private byte[] depthpixels = null;                  // - intermediate storage for frame datta conveted to color pointer 
@@ -95,13 +95,13 @@ namespace Object_Detection
             bool IsFrameProcessed = false;
             using (DepthFrame depthFrame = e.FrameReference.AcquireFrame())
             {
-                if (depthFrame != null && !Application.Current.Windows.OfType<Window>().Any(w => w.Name.Equals("ClassLabelWin")))
+                if (depthFrame != null)
                 {
                     using (KinectBuffer kinectBuffer = depthFrame.LockImageBuffer())
                     {
                         if (((frameDescription.Width * frameDescription.Height) == (kinectBuffer.Size / frameDescription.BytesPerPixel)) && (frameDescription.Width == depthbitmap.PixelWidth) && (frameDescription.Height == depthbitmap.PixelHeight))
                         {
-                            ushort maxDepthValue = 1200;
+                            ushort maxDepthValue = Convert.ToUInt16(TreshSlide.Value);
                             ushort minDepthValue = 50;
                             ProcessDepthFrameData(kinectBuffer.UnderlyingBuffer, kinectBuffer.Size, minDepthValue, maxDepthValue);
                             IsFrameProcessed = true;
@@ -126,7 +126,7 @@ namespace Object_Detection
             for (int i = 0; i < (int)(depthFrameDataSize / frameDescription.BytesPerPixel); ++i)
             {
                 ushort depth = framedata[i];
-                if (depth >= minDepth && depth <= maxDepth && depth != 0 && ((i / frameDescription.Width) > 100) && (i / frameDescription.Width < 253) && ((i - ((i / frameDescription.Width) * frameDescription.Width)) > 100) && ((i - ((i / frameDescription.Width) * frameDescription.Width)) < 412))
+                if (depth >= minDepth && depth <= maxDepth && depth != 0 && ((i / frameDescription.Width) > 120) && (i / frameDescription.Width < 424 - 100) && ((i - ((i / frameDescription.Width) * frameDescription.Width)) > 250) && ((i - ((i / frameDescription.Width) * frameDescription.Width)) < 512 - 120))
                 {
                     depthpixels[i] = (byte)(256 - (depth / DepthToByte));
                     PixelCount++;
@@ -147,7 +147,8 @@ namespace Object_Detection
             Image<Gray, byte> Frame = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             Frame.Bytes = depthpixels;
             Image<Gray, byte> FilteredFrame = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
-            CvInvoke.BilateralFilter(Frame, FilteredFrame, 9, 140, 140);
+            CvInvoke.MedianBlur(Frame, Frame, 7); 
+            CvInvoke.BilateralFilter(Frame, FilteredFrame, 3, 140, 140);
             UMat FrameCannyImage = new UMat();
             CvInvoke.Canny(FilteredFrame, FrameCannyImage, 10, 200);
             VectorOfVectorOfPoint FrameImageContours = new VectorOfVectorOfPoint();
@@ -167,7 +168,22 @@ namespace Object_Detection
 
             }
             RotatedRect FrameRotatedRect = CvInvoke.MinAreaRect(FrameAppContour);
-            System.Drawing.PointF[] FrameInitCenters = FrameRotatedRect.GetVertices();
+            Image<Bgr, byte> ColoredImage = new Image<Bgr, byte>(frameDescription.Width, frameDescription.Height);
+            System.Drawing.PointF[] FrameInitCenters = new System.Drawing.PointF[4];
+
+            Moments moments = CvInvoke.Moments(FrameAppContour);
+            
+            FrameInitCenters[0].X = (int)(moments.M10 / moments.M00) + 1;
+            FrameInitCenters[0].Y = (int)(moments.M01 / moments.M00) - 1;
+            //ColoredImage[(int)FrameInitCenters[0].X, (int)FrameInitCenters[0].Y] = new Bgr(8, 159, 246);
+            FrameInitCenters[1].X = (int)(moments.M10 / moments.M00) + 1;
+            FrameInitCenters[1].Y = (int)(moments.M01 / moments.M00) + 1;
+            //ColoredImage[(int)FrameInitCenters[0].X, (int)FrameInitCenters[0].Y] = new Bgr(8, 159, 246);
+            FrameInitCenters[2].X = (int)(moments.M10 / moments.M00) - 1;
+            FrameInitCenters[2].Y = (int)(moments.M01 / moments.M00) - 1;
+
+            FrameInitCenters[3].X = (int)(moments.M10 / moments.M00) - 1;
+            FrameInitCenters[3].Y = (int)(moments.M01 / moments.M00) + 1;
 
             byte[] NonZeroPixels = depthpixels.Where(s => s != 0).ToArray();
             List<System.Drawing.PointF> NonZPxlPoint = new List<System.Drawing.PointF>();
@@ -205,6 +221,9 @@ namespace Object_Detection
 
             }
 
+            
+            
+
             for (int k = 0; k < NonZeroPixels.Length - 1; k++)
 
             {
@@ -214,18 +233,22 @@ namespace Object_Detection
 
                     case 0:
                         FrameObj.Region1PixelCnt++;
+                        ColoredImage[(int)CustomLabels[k].Y, (int)CustomLabels[k].X] = new Bgr(255, 0, 0);
                         break;
                     case 1:
 
                         FrameObj.Region2PixelCnt++;
+                        ColoredImage[(int)CustomLabels[k].Y, (int)CustomLabels[k].X] = new Bgr(0, 255, 0);
                         break;
                     case 2:
 
                         FrameObj.Region3PixelCnt++;
+                        ColoredImage[(int)CustomLabels[k].Y, (int)CustomLabels[k].X] = new Bgr(0, 0,255);
                         break;
                     case 3:
 
                         FrameObj.Region4PixelCnt++;
+                        ColoredImage[(int)CustomLabels[k].Y, (int)CustomLabels[k].X] = new Bgr(180, 27, 100);
                         break;
                 }
                 FrameObj.PixelCount++;
@@ -237,7 +260,7 @@ namespace Object_Detection
             R4.Content = FrameObj.Region4PixelCnt;
             MyLabel.Content = FrameObj.PixelCount;
             CvInvoke.Polylines(FilteredFrame, Array.ConvertAll(FrameRotatedRect.GetVertices(), Point.Round), true, new MCvScalar(205, 0, 255), 2);
-            FrameBitmap = BitmapSourceConvert.ToBitmapSource(FilteredFrame);
+            FrameBitmap = BitmapSourceConvert.ToBitmapSource(ColoredImage);
             LoadCapture.Source = FrameBitmap;
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth, 0);
             FrameObj.CalculateTolerances();
@@ -280,7 +303,7 @@ namespace Object_Detection
             [DllImport("gdi32")]
             private static extern int DeleteObject(IntPtr o);
 
-            public static BitmapSource ToBitmapSource(Image<Gray, byte> image)
+            public static BitmapSource ToBitmapSource(Image<Bgr, byte> image)
             {
                 using (System.Drawing.Bitmap source = image.ToBitmap())
                 {
@@ -306,41 +329,50 @@ namespace Object_Detection
         {
             string Class = "";
 
-
-            if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count() != 0)
+            try
             {
-                for (int line = 0; line < File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count(); line++)
+                if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count() != 0)
                 {
-                    double[,] Ratios = GetObjectRanges(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')); 
-
-                    if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line] != "")
+                    for (int line = 0; line < File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count(); line++)
                     {
+                        double[,] Ratios = GetObjectRanges(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*'));
 
-                        Int32 TotalPixels = Int32.Parse(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')[6]);
-
-                        if (
-                            Ratios[0,0] > ClassificatedObj.ratio1 && ClassificatedObj.ratio1 > Ratios[1,0]
-                             && Ratios[0, 1] > ClassificatedObj.ratio2 && ClassificatedObj.ratio2 > Ratios[1, 1]
-                              && Ratios[0, 2] > ClassificatedObj.ratio3 && ClassificatedObj.ratio3 > Ratios[1, 2]
-                               && Ratios[0, 3] > ClassificatedObj.ratio4 && ClassificatedObj.ratio4 > Ratios[1, 3]
-                              )
+                        if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line] != "")
                         {
 
-                        
+                            //Int32 TotalPixels = Int32.Parse(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')[6]);
 
-                            Class = File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')[0];
-                            break;
+                            if (
+                                Ratios[0, 0] > ClassificatedObj.ratio1 && ClassificatedObj.ratio1 > Ratios[1, 0]
+                                 && Ratios[0, 1] > ClassificatedObj.ratio2 && ClassificatedObj.ratio2 > Ratios[1, 1]
+                                  && Ratios[0, 2] > ClassificatedObj.ratio3 && ClassificatedObj.ratio3 > Ratios[1, 2]
+                                   && Ratios[0, 3] > ClassificatedObj.ratio4 && ClassificatedObj.ratio4 > Ratios[1, 3]
+                                  )
+                            {
+
+
+
+                                Class = File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')[0];
+                                break;
 
 
 
 
+                            }
+                            else
+                            {
+                                Class = "Not Identified";
+                            }
                         }
-                        else
-                        {
-                            Class = "Not Identified";
-                        }
+
+
                     }
-
+                }
+            }
+            catch (FileNotFoundException e)
+            {
+                using (var file = File.Create("C:/Users/CPT Danko/Pictures/ObjectValues.txt"))
+                {
 
                 }
             }
