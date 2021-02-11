@@ -91,7 +91,8 @@
     <Compile Include="ClassLabel.xaml.cs">
       <DependentUpon>ClassLabel.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Region.cs" />
+    <Compile Include="ImageDataset.cs" />
+    <Compile Include="Regions.cs" />
     <Page Include="ClassLabel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

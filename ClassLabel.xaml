@@ -45,7 +45,8 @@
             </TextBox.Style>
 
         </TextBox>
-        <Label Content="Input custom class label " HorizontalAlignment="Left" Margin="127,50,0,0" VerticalAlignment="Top" Height="36" Width="199" FontSize="16"/>
+        <Label Content="Add trainig data " HorizontalAlignment="Left" Margin="127,50,0,0" VerticalAlignment="Top" Height="36" Width="199" FontSize="16" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+        <TextBox x:Name="Index" HorizontalAlignment="Left" Height="34" Margin="350,103,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="42" TextAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
 
 
 
