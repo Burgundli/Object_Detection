@@ -6,7 +6,7 @@ namespace Object_Detection
 {
     class ImageDataset
     {
-        public List<int[]> RegionsValues { get; set; }
+        public List<float[]> RegionsValues { get; set; }
         public int Class { get; set; }
         public List<Image<Gray, byte>> Images { get; set; }
 

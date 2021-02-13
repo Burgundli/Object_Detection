@@ -1,5 +1,6 @@
 ﻿using Emgu.CV;
 using Emgu.CV.CvEnum;
+using Emgu.CV.ML;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Microsoft.Kinect;
@@ -32,6 +33,9 @@ namespace Object_Detection
         public string ObjectProperty = "";
         List<ImageDataset> Datasets = new List<ImageDataset>();
         Object FrameObj = new Object();
+        KNearest KNN = new KNearest();
+        List<ImageDataset> TrainD = new List<ImageDataset>();
+        List<ImageDataset> TestD = new List<ImageDataset>();
         public MainWindow()
         {
             // Set up of  the Sensor and reader 
@@ -227,12 +231,17 @@ namespace Object_Detection
                 }
             }
         }
-        private unsafe void Train_Click(object sender, RoutedEventArgs e)
+        private unsafe void GetTrainData_Click(object sender, RoutedEventArgs e)
         {
 
             var images = Directory.GetFiles("C:/Users/CPT Danko/Desktop/images");
             double oneperc = 100.00 / images.Length;
 
+            if (File.Exists("C:/Users/CPT Danko/Pictures/ObjectValues.txt"))
+            {
+                File.Delete("C:/Users/CPT Danko/Pictures/ObjectValues.txt");
+
+            }
 
 
             for (var image = 0; image < images.Length; image++)
@@ -252,7 +261,9 @@ namespace Object_Detection
                 var Regions = FrameObj.CalculateRegions(LabeledArray);
 
                 Image<Bgr, byte> colored = new Image<Bgr, byte>(512, 424);
-                if (image == 70)
+
+                /*
+                if (image == 5)
                 {
                     foreach (var pixel in LabeledArray)
                     {
@@ -281,7 +292,7 @@ namespace Object_Detection
                     LoadCapture.Source = FrameBitmap;
 
                 }
-
+                */
 
                 if (index > -1)
                 {
@@ -292,7 +303,7 @@ namespace Object_Detection
                 {
                     ImageDataset img = new ImageDataset();
                     img.Images = new List<Image<Gray, byte>>();
-                    img.RegionsValues = new List<int[]>();
+                    img.RegionsValues = new List<float[]>();
                     img.Images.Add(SelectImg);
                     img.Class = label;
                     img.RegionsValues.Add(Regions.ToArray());
@@ -302,88 +313,91 @@ namespace Object_Detection
 
 
 
+                string ImageTrainData = label + "*" + "*" + ImgName;
+                foreach (var region in Regions)
+                {
+                    ImageTrainData += region.ToString() + "*";
+
+
+                }
 
                 Progress.Value += oneperc;
 
 
+                File.AppendAllText("C:/Users/CPT Danko/Pictures/ObjectValues.txt", ImageTrainData + Environment.NewLine);
+
+
 
             }
+
+
+
 
 
 
 
 
         }
-        private string ClassifyObject(Object ClassificatedObj)
+        private void Train_KNN()
         {
-            /*
-            string Class = "";
 
 
-            if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count() != 0)
-            {
-                for (int line = 0; line < File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt").Count(); line++)
-                {
-                    double[,] Ratios = GetObjectRanges(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*'));
-
-                    if (File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line] != "")
-                    {
-
-                        Int32 TotalPixels = Int32.Parse(File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')[6]);
-
-                        if (
-                            Ratios[0, 0] > ClassificatedObj.ratio1 && ClassificatedObj.ratio1 > Ratios[1, 0]
-                             && Ratios[0, 1] > ClassificatedObj.ratio2 && ClassificatedObj.ratio2 > Ratios[1, 1]
-                              && Ratios[0, 2] > ClassificatedObj.ratio3 && ClassificatedObj.ratio3 > Ratios[1, 2]
-                               && Ratios[0, 3] > ClassificatedObj.ratio4 && ClassificatedObj.ratio4 > Ratios[1, 3]
-                              )
-                        {
+            Matrix<float> MatTrainData =null;
+            Matrix<int> MatClass = null;
+           (MatTrainData, MatClass) = FrameObj.DataToMatrix(TrainD);
 
 
 
-                            Class = File.ReadAllLines("C:/Users/CPT Danko/Pictures/ObjectValues.txt")[line].Split('*')[0];
-                            break;
+            KNN.DefaultK = 10;
+            KNN.IsClassifier = true;
+            KNN.Train(MatTrainData, Emgu.CV.ML.MlEnum.DataLayoutType.RowSample, MatClass);
 
+            
 
+            
 
-
-                        }
-                        else
-                        {
-                            Class = "Not Identified";
-                        }
-                    }
-
-
-                }
-            }
-            */
-            return null;
+        }
+        private void DataToMatrix()
+        {
 
 
         }
-        private double[,] GetObjectRanges(string[] ObjectLine)
+        private void SplitData()
         {
-            double[,] rationRange = new double[2, 4];
-            if (ObjectLine.Length != 1)
 
+
+            (TrainD,TestD) = FrameObj.TestTrainSplit(Datasets);
+                     
+
+        }
+        private void Test_KNN()
+        {
+            Matrix<float> MData = null;
+            Matrix<int> MClass = null;
+            List<int> Predictions = new List<int>();
+            List<int> ActualClasses = new List<int>(); 
+
+
+            (MData, MClass) = FrameObj.DataToMatrix(TestD);
+
+            for (int data = 0;data<MData.Rows; data++)
             {
 
-                rationRange[0, 0] = Max(Convert.ToDouble((ObjectLine[2]).Split('-')[0]), Convert.ToDouble((ObjectLine[2]).Split('-')[1]));       // Upper tolerance value R1-R2
-                rationRange[1, 0] = Min(Convert.ToDouble((ObjectLine[2]).Split('-')[0]), Convert.ToDouble((ObjectLine[2]).Split('-')[1]));      // Lower tolerance value R1- R2
 
-                rationRange[0, 1] = Max(Convert.ToDouble((ObjectLine[3]).Split('-')[0]), Convert.ToDouble((ObjectLine[3]).Split('-')[1]));       // Upper tolerance value R2-R3
-                rationRange[1, 1] = Min(Convert.ToDouble((ObjectLine[3]).Split('-')[0]), Convert.ToDouble((ObjectLine[3]).Split('-')[1]));       // Lower tolerance value R2- R3
+                var prediction = KNN.Predict(MData.GetRow(data));
+                Predictions.Add((int)prediction);
+                ActualClasses.Add(MClass[data, 0]); 
+                
 
-                rationRange[0, 2] = Max(Convert.ToDouble((ObjectLine[4]).Split('-')[0]), Convert.ToDouble((ObjectLine[4]).Split('-')[1]));      // Upper tolerance value R1-R4
-                rationRange[1, 2] = Min(Convert.ToDouble((ObjectLine[4]).Split('-')[0]), Convert.ToDouble((ObjectLine[4]).Split('-')[1]));      // Lower tolerance value R1- R4
-
-                rationRange[0, 3] = Max(Convert.ToDouble((ObjectLine[5]).Split('-')[0]), Convert.ToDouble((ObjectLine[5]).Split('-')[1]));      // Upper tolerance value R2-R3
-                rationRange[1, 3] = Min(Convert.ToDouble((ObjectLine[5]).Split('-')[0]), Convert.ToDouble((ObjectLine[5]).Split('-')[1]));      // Lower tolerance value R2- R3
-
+                
+                
             }
 
-            return rationRange;
+            var ConfMatrix = Object.ComputeConfusionMatrix(ActualClasses.ToArray(), Predictions.ToArray());
+            var metrics = Object.CalculateMetrics(ConfMatrix, ActualClasses.ToArray(), Predictions.ToArray());
+            string results = $"Test Samples {ActualClasses.Count} \n   Accuraccy = {metrics[0] * 100} % \n " +
+                $"Precission = {metrics[1] * 100} % \n  Recall = {metrics[2] * 100} %";
+            Precision.Content = results; 
 
         }
 
@@ -419,6 +433,15 @@ namespace Object_Detection
             return (NonZeroPixels, FrameInitCenters);
         }
 
+        private void Test_Accuracy_Click(object sender, RoutedEventArgs e)
+        {
+
+            SplitData();
+            Train_KNN(); 
+            Test_KNN(); 
+
+
+        }
     }
 
 }

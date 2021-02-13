@@ -30,7 +30,7 @@
                 </TransformGroup>
             </Button.RenderTransform>
         </Button>
-        <Button x:Name="Train" Content="Train" HorizontalAlignment="Left" Margin="235,364,0,0" VerticalAlignment="Top" Width="93" Height="26" Click="Train_Click"/>
+        <Button x:Name="Train" Content="Get train data" HorizontalAlignment="Left" Margin="235,364,0,0" VerticalAlignment="Top" Width="99" Height="26" Click="GetTrainData_Click"/>
         <Label x:Name="MyLabel" Content="Label" HorizontalAlignment="Left" Height="26" Margin="170.4,19,0,0" VerticalAlignment="Top" Width="74" Grid.Column="1"/>
         <Label x:Name="MyLabel2" Content="Label" HorizontalAlignment="Left" Margin="188,19,0,0" VerticalAlignment="Top" Width="63"/>
         <Image x:Name="LoadCapture" HorizontalAlignment="Left" Height="309" Margin="407,50,0,0" VerticalAlignment="Top" Width="330" RenderTransformOrigin="0.1,0.04" Grid.ColumnSpan="2"/>
@@ -49,9 +49,10 @@
         <Label Content="R4:" HorizontalAlignment="Left" Margin="338,407,0,0" VerticalAlignment="Top" RenderTransformOrigin="-1.573,0.383"/>
         <Label x:Name="R3" Content="0" HorizontalAlignment="Left" Margin="275,407,0,0" VerticalAlignment="Top"/>
         <Label x:Name="R4" Content="0" HorizontalAlignment="Left" Margin="379,407,0,0" VerticalAlignment="Top" RenderTransformOrigin="-1.573,0.383" Width="34"/>
-        <Label x:Name="Precision" Content="Label" HorizontalAlignment="Left" Margin="34,458,0,0" VerticalAlignment="Top" Width="71"/>
+        <Label x:Name="Precision" Content="Label" HorizontalAlignment="Left" Margin="34,458,0,0" VerticalAlignment="Top" Width="257" Height="103"/>
         <ProgressBar x:Name="Progress" HorizontalAlignment="Left" Height="20" Margin="328,529,0,0" VerticalAlignment="Top" Width="299" Grid.ColumnSpan="2"/>
         <Label Content="Training Data" HorizontalAlignment="Left" Margin="328,488,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2" Width="90"/>
+        <Button x:Name="Test_Accuracy" Content="Test accuracy " HorizontalAlignment="Left" Height="35" Margin="34,566,0,0" VerticalAlignment="Top" Width="116" Click="Test_Accuracy_Click"/>
 
 
     </Grid>
