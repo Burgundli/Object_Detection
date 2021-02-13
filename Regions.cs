@@ -55,9 +55,9 @@ namespace Object_Detection
         public List<float> CalculateRegions(Point3D[] labeledArray)
         {
             List<float> Regions = new List<float>();
-
-            var maxIndex = labeledArray.Max(x => x.Z);
-
+            
+            var maxIndex = 4;
+            
             for (int index = 0; index <= maxIndex; index++)
             {
 

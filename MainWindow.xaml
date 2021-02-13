@@ -53,6 +53,8 @@
         <ProgressBar x:Name="Progress" HorizontalAlignment="Left" Height="20" Margin="328,529,0,0" VerticalAlignment="Top" Width="299" Grid.ColumnSpan="2"/>
         <Label Content="Training Data" HorizontalAlignment="Left" Margin="328,488,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2" Width="90"/>
         <Button x:Name="Test_Accuracy" Content="Test accuracy " HorizontalAlignment="Left" Height="35" Margin="34,566,0,0" VerticalAlignment="Top" Width="116" Click="Test_Accuracy_Click"/>
+        <Button x:Name="Start_Detection" Grid.ColumnSpan="2" Content="Start detection" HorizontalAlignment="Left" Height="34" Margin="338,589,0,0" VerticalAlignment="Top" Width="200" Click="Start_Detection_Click"/>
+        <Label x:Name="Prediction" Content="Label" Grid.Column="1" HorizontalAlignment="Left" Height="41" Margin="106.4,449,0,0" VerticalAlignment="Top" Width="165"/>
 
 
     </Grid>

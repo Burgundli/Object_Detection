@@ -36,6 +36,8 @@ namespace Object_Detection
         KNearest KNN = new KNearest();
         List<ImageDataset> TrainD = new List<ImageDataset>();
         List<ImageDataset> TestD = new List<ImageDataset>();
+        private bool IsDataLoaded, IsTrained = false; 
+
         public MainWindow()
         {
             // Set up of  the Sensor and reader 
@@ -146,37 +148,40 @@ namespace Object_Detection
         private unsafe void RenderPixels()
 
         {
-
-            /*
-            Image<Gray, byte> Frame = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
-            Frame.Bytes = depthpixels;
-            System.Drawing.PointF[] centers, NonZeroPxlPoint;
-            byte[] NonZeroPxl ; 
-            
+            Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
+            image.Bytes = depthpixels;
 
 
-            Image<Gray, byte> FilteredFrame = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
-            CvInvoke.BilateralFilter(Frame, FilteredFrame, 9, 140, 140);
+            if ( KNN != null && IsDataLoaded == true && IsTrained ==true && depthpixels.Where(x=>x > 0).Count() != 0)
+            {
+               
+                Image<Gray, byte> Filteredimage = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
+                CvInvoke.MedianBlur(image, image, 3);
+                CvInvoke.BilateralFilter(image, Filteredimage, 9, 75, 75);
+                System.Drawing.PointF[] cntrs;
+                byte[] NonZeroPixel;
+                List<float[]> newRegion = new List<float[]>();
 
-            (NonZeroPxl,centers) =  ProceessImage(FilteredFrame);
+                (NonZeroPixel, cntrs) = ProceessImage(Filteredimage);
+                var Points = FrameObj.Calculate_Kmeans(cntrs, NonZeroPixel);
+                var Regions = FrameObj.CalculateRegions(Points);
 
-             
-            var LabeledArray = FrameObj.Calculate_Kmeans(centers, NonZeroPxl.ToArray());
-            FrameObj.CalculateRegions(LabeledArray);
-
-            CvInvoke.Polylines(FilteredFrame, Array.ConvertAll(centers, Point.Round), true, new MCvScalar(205, 0, 255), 2);
-            BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(FilteredFrame);
-            LoadCapture.Source = FrameBitmap;
+                newRegion.Add(Regions.ToArray());
 
 
+                Matrix<float> matrix = new Matrix<float>(Object.To2D<float>(newRegion.ToArray()));
 
-            depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth, 0);
 
-            FrameObj.CalculateRegions(LabeledArray);
+                var prediction = KNN.Predict(matrix);
+                Prediction.Content = prediction; 
 
-            Precision.Content = ClassifyObject(FrameObj);
- 
-            */
+            }
+
+
+
+            depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
+
+
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -332,7 +337,7 @@ namespace Object_Detection
 
 
 
-
+            IsDataLoaded = true; 
 
 
 
@@ -357,9 +362,18 @@ namespace Object_Detection
             
 
         }
-        private void DataToMatrix()
+        private void Train_KNN_Full()
         {
 
+            Matrix<float> MatTrainData = null;
+            Matrix<int> MatClass = null;
+            (MatTrainData, MatClass) = FrameObj.DataToMatrix(Datasets);
+
+
+
+            KNN.DefaultK = 10;
+            KNN.IsClassifier = true;
+            KNN.Train(MatTrainData, Emgu.CV.ML.MlEnum.DataLayoutType.RowSample, MatClass);
 
         }
         private void SplitData()
@@ -441,6 +455,12 @@ namespace Object_Detection
             Test_KNN(); 
 
 
+        }
+
+        private void Start_Detection_Click(object sender, RoutedEventArgs e)
+        {
+            Train_KNN_Full();
+            IsTrained = true; 
         }
     }
 
