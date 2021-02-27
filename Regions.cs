@@ -8,7 +8,7 @@ using static System.Math;
 
 namespace Object_Detection
 {
-     class Object
+    class Object
     {
 
 
@@ -55,10 +55,10 @@ namespace Object_Detection
         public List<float> CalculateRegions(Point3D[] labeledArray)
         {
             List<float> Regions = new List<float>();
-            
+
             var maxIndex = 4;
-            
-            for (int index = 0; index <= maxIndex; index++)
+
+            for (int index = 0; index < maxIndex; index++)
             {
 
                 Regions.Add(labeledArray.Where(y => y.Z == index).Count());
@@ -110,19 +110,19 @@ namespace Object_Detection
                 }
 
                 List<ImageDataset> TestData = (from d in data
-                                            select new ImageDataset
-                                            {
-                                                RegionsValues = d.RegionsValues.Take(numTestSamples).ToList(),
-                                                Class = d.Class
-                                            }).ToList();
+                                               select new ImageDataset
+                                               {
+                                                   RegionsValues = d.RegionsValues.Take(numTestSamples).ToList(),
+                                                   Class = d.Class
+                                               }).ToList();
 
                 List<ImageDataset> TrainData = (from d in data
-                                             select new ImageDataset
-                                             {
-                                                 RegionsValues = d.RegionsValues.Skip(numTestSamples)
-                                                 .Take(numTrainSamples).ToList(),
-                                                 Class = d.Class
-                                             }).ToList();
+                                                select new ImageDataset
+                                                {
+                                                    RegionsValues = d.RegionsValues.Skip(numTestSamples)
+                                                    .Take(numTrainSamples).ToList(),
+                                                    Class = d.Class
+                                                }).ToList();
                 return (TrainData, TestData);
 
             }
@@ -138,7 +138,7 @@ namespace Object_Detection
         {
 
             List<float[]> TrainD = new List<float[]>();
-            List<int> LabelD = new List<int>(); 
+            List<int> LabelD = new List<int>();
 
 
             foreach (var dataset in datasets)
@@ -158,7 +158,7 @@ namespace Object_Detection
             Matrix<float> ReturnD = new Matrix<float>(To2D<float>(TrainD.ToArray()));
             Matrix<int> ReturnC = new Matrix<int>(LabelD.ToArray());
 
-            return (ReturnD, ReturnC); 
+            return (ReturnD, ReturnC);
 
         }
         public static int[,] ComputeConfusionMatrix(int[] actual, int[] predicted)
