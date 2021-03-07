@@ -197,7 +197,7 @@ namespace Object_Detection
 
                     
                 }
-                /*
+                
                 int help = 0; 
                 foreach(var gray in ImageList)
                 {
@@ -206,7 +206,7 @@ namespace Object_Detection
                     help++; 
                 }
                 
-                */
+                
                 CvInvoke.MedianBlur(ColoredImage, ColoredImage, 5);
                 List<float> predictedClassed = new List<float>(); 
                 foreach(var IMG in ImageList)
@@ -235,7 +235,7 @@ namespace Object_Detection
                     DetectedClass.Content = prediction;
                     predictedClassed.Add(prediction);
 
-                    if (prediction == 1)
+                    if (prediction == 2)
                     {
                         var rotedRect = CvInvoke.MinAreaRect(vector);
                         CvInvoke.Polylines(ColoredImage, Array.ConvertAll(rotedRect.GetVertices(), System.Drawing.Point.Round), true, new MCvScalar(255, 255, 255), 2);
@@ -507,6 +507,7 @@ namespace Object_Detection
 
             KNN.DefaultK = 10;
             KNN.IsClassifier = true;
+           
             KNN.Train(MatTrainData, Emgu.CV.ML.MlEnum.DataLayoutType.RowSample, MatClass);
 
         }
@@ -553,7 +554,7 @@ namespace Object_Detection
         {
 
             UMat FrameCannyImage = new UMat();
-            CvInvoke.Canny(FilteredImage, FrameCannyImage, 10, 200);
+            CvInvoke.Canny(FilteredImage, FrameCannyImage, 100,200);
             VectorOfVectorOfPoint FrameImageContours = new VectorOfVectorOfPoint();
             CvInvoke.FindContours(FrameCannyImage, FrameImageContours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
             VectorOfPoint FrameAppContour = new VectorOfPoint(2);
