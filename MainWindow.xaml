@@ -54,7 +54,7 @@
         <Label Content="Training Data" HorizontalAlignment="Left" Margin="328,488,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2" Width="90"/>
         <Button x:Name="Test_Accuracy" Content="Test accuracy " HorizontalAlignment="Left" Height="35" Margin="34,566,0,0" VerticalAlignment="Top" Width="116" Click="Test_Accuracy_Click"/>
         <Button x:Name="Start_Detection" Grid.ColumnSpan="2" Content="Start detection" HorizontalAlignment="Left" Height="34" Margin="338,589,0,0" VerticalAlignment="Top" Width="200" Click="Start_Detection_Click"/>
-        <Label x:Name="Prediction" Content="Label" Grid.Column="1" HorizontalAlignment="Left" Height="41" Margin="106.4,449,0,0" VerticalAlignment="Top" Width="165"/>
+        <Label x:Name="Prediction" Content="Label" Grid.Column="1" HorizontalAlignment="Left" Height="41" Margin="106.4,449,0,0" VerticalAlignment="Top" Width="91"/>
         <Slider x:Name="Min_Depth" HorizontalAlignment="Left" Height="27" Margin="46,702,0,0" VerticalAlignment="Top" Width="288" Maximum="200" Minimum="100"/>
         <Slider x:Name="Max_Depth" HorizontalAlignment="Left" Margin="413,702,0,0" VerticalAlignment="Top" RenderTransformOrigin="-4.214,-0.75" Width="323" Grid.ColumnSpan="2" Maximum="300" Minimum="200"/>
         <Label Content="Max" HorizontalAlignment="Left" Margin="407,660,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.6,0.891" Grid.ColumnSpan="2"/>
@@ -63,6 +63,9 @@
         <Label HorizontalAlignment="Left" Margin="407,743,0,0" VerticalAlignment="Top" Content="{Binding ElementName=Max_Depth,Path=Value}" RenderTransformOrigin="0.4,-1.172" Grid.ColumnSpan="2"/>
         <Button x:Name="Test" Grid.ColumnSpan="2" Content="Test" Grid.Column="1" HorizontalAlignment="Left" Height="34" Margin="170.4,589,0,0" VerticalAlignment="Top" Width="163" Click="Test_Click"/>
         <Label x:Name="DetectedClass" Grid.ColumnSpan="2" Content="Label" HorizontalAlignment="Left" Height="34" Margin="338,449,0,0" VerticalAlignment="Top" Width="123"/>
+        <Button Content="Button" HorizontalAlignment="Left" Margin="243.4,485,0,0" VerticalAlignment="Top" Width="105" Height="29" Click="Button_Click" Grid.ColumnSpan="2" Grid.Column="1"/>
+        <TextBox x:Name="TexBox" Grid.ColumnSpan="2" Grid.Column="1" HorizontalAlignment="Left" Height="23" Margin="233.4,526,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="128"/>
+        <Button x:Name="Scan_Enviroment" Content="Scan Enviroment" HorizontalAlignment="Left" Margin="177,566,0,0" VerticalAlignment="Top" Width="114" Height="35" Click="Scan_Enviroment_Click"/>
 
 
 

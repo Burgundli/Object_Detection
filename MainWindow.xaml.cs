@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Numpy; 
 
 namespace Object_Detection
 {
@@ -169,6 +170,7 @@ namespace Object_Detection
         private unsafe void RenderPixels()
 
         {
+            /*
             Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             image.Bytes = depthpixels;
 
@@ -177,9 +179,9 @@ namespace Object_Detection
                 Image<Bgr, byte> ColoredImage = new Image<Bgr, byte>(512, 424);
                 Image<Bgr, byte> NewImage = new Image<Bgr, byte>(512, 424);
                 
-                Bgr color = new Bgr();
                 var RawDataArr = RawData.ToArray();
                 int[] RawDataCount = new int[15];
+
                 List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>(); 
                 for (int k = 0; k < 15; k++)
                 {
@@ -188,7 +190,7 @@ namespace Object_Detection
                 
                 for (int i = 0; i < RawDataArr.Length; i++)
                 {
-
+                    
                     var mapped = MapValue(0, 1500, 0, 15, RawDataArr[i]); 
 
                     ColoredImage[(i / 512), (i - ((i / 512) * 512))] = Colors[(int)mapped];
@@ -209,6 +211,7 @@ namespace Object_Detection
                 
                 CvInvoke.MedianBlur(ColoredImage, ColoredImage, 5);
                 List<float> predictedClassed = new List<float>(); 
+
                 foreach(var IMG in ImageList)
                 {
                     CvInvoke.MedianBlur(IMG, IMG, 5);
@@ -217,7 +220,6 @@ namespace Object_Detection
                     List<float[]> newRegion = new List<float[]>();
 
                     System.Drawing.Point[] contour; 
-                    
 
                     (NonZeroPixel, cntrs,contour) = ProceessImage(IMG);
 
@@ -234,8 +236,11 @@ namespace Object_Detection
                     var prediction = KNN.Predict(matrix);
                     DetectedClass.Content = prediction;
                     predictedClassed.Add(prediction);
+                    VectorOfPoint DataVector = new VectorOfPoint(Datasets[(int)prediction-1].ImageContours[0]); 
 
-                    if (prediction == 2)
+                    if (prediction == 4 
+                        //&& CvInvoke.MatchShapes(vector,DataVector,ContoursMatchType.I1) < 6
+                        )
                     {
                         var rotedRect = CvInvoke.MinAreaRect(vector);
                         CvInvoke.Polylines(ColoredImage, Array.ConvertAll(rotedRect.GetVertices(), System.Drawing.Point.Round), true, new MCvScalar(255, 255, 255), 2);
@@ -302,11 +307,12 @@ namespace Object_Detection
 
                             }
 
-                            */
+                            
                 frameCount = 0;
             }
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
             frameCount++;
+            */
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -431,7 +437,7 @@ namespace Object_Detection
                 {
                     Datasets[index].Images.Add(SelectImg);
                     Datasets[index].RegionsValues.Add(Regions.ToArray());
-                   
+                    Datasets[index].ImageContours.Add(contour);
                     Datasets[index].NonZeroPixels.Add(NoZeroPxls.Length); 
                 }
                 else
@@ -444,7 +450,7 @@ namespace Object_Detection
                     img.Images.Add(SelectImg);
                     img.Class = label;
                     img.RegionsValues.Add(Regions.ToArray());
-                   
+                    img.ImageContours.Add(contour); 
                     img.NonZeroPixels.Add(NoZeroPxls.Length); 
                     Datasets.Add(img);
 
@@ -605,130 +611,312 @@ namespace Object_Detection
 
             Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             image.Bytes = depthpixels;
-            Image<Gray, byte> Filteredimage = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
-            //CvInvoke.BilateralFilter(image, Filteredimage, 9, 75, 75);
-            List<Image<Gray, byte>> ProcessedImages = new List<Image<Gray, byte>>();
-            List<byte[]> Pixels = new List<byte[]>();
-            System.Drawing.Rectangle rect = new System.Drawing.Rectangle();
-            float pred = 0;
 
-            List<Image<Gray, byte>> ImageSets = SegmentImage(image, 115);
-            int cnt = 0;
-            int cnt2 = 0;
+            Image<Bgr, byte> ColoredImage = new Image<Bgr, byte>(512, 424);
 
 
-            var image1 = Sliding_Window(image.Resize(512, 420, Inter.Cubic), new System.Drawing.Size(128, 140));
+            var ImageList = SegmentImage(15); 
 
-            var newImg = image1.Convert<Bgr, byte>();
+           
+        
+            List<System.Drawing.Rectangle> Boxes = Sliding_Window(ImageList, new System.Drawing.Size(128, 140));
+            int[] intersectionCount = new int[Boxes.Count]; 
 
-            //BitmapSource bitmapSource = BitmapSourceConvert.ToBitmapSource(newImg); 
-            //LoadCapture.Source = bitmapSource; 
+            for (int c = 0; c < Boxes.Count; c++)
+            {
+                for(int k = 0; k < Boxes.Count; k++)
+                {
+                    if (Boxes[c].IntersectsWith(Boxes[k]))
+                    {
+                        intersectionCount[c]++; 
+                    }
 
+                }
+                
 
+            }
 
+            var maxindex = intersectionCount.ToList().IndexOf(intersectionCount.Max()); 
+            CvInvoke.Rectangle(image, Boxes[maxindex], new MCvScalar(255, 255, 255));
+            CvInvoke.MedianBlur(ColoredImage, ColoredImage, 3);
+
+            /*
+            foreach (var box in Boxes)
+            {
+
+                CvInvoke.Rectangle(image, box, new MCvScalar(255, 255, 255));
+                CvInvoke.MedianBlur(ColoredImage, ColoredImage, 3);
+            }
+            */
+
+            depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
+            BitmapSource bitmapSource = BitmapSourceConvert.ToBitmapSource(ColoredImage);
+            LoadCapture.Source = bitmapSource;
 
 
         }
 
-        private List<Image<Gray, byte>> SegmentImage(Image<Gray, byte> InputImage, int treshold)
+        private List<Image<Gray, byte>> SegmentImage(int RegionCount)
         {
-            List<Image<Gray, byte>> ImageRegions = new List<Image<Gray, byte>>();
 
-            for (int k = 0; k < 2875; k += treshold)
+            var RawDataArr = RawData.ToArray();
+            int[] RawDataCount = new int[RegionCount];
+
+            List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
+
+            for (int k = 0; k < RegionCount; k++)
             {
-                byte[] ByteData = new byte[RawData.Count];
+                ImageList.Add(new Image<Gray, byte>(512, 424));
+            }
 
-                for (var element = 0; element < ByteData.Length; element++)
-                {
-                    if (RawData[element] > k && RawData[element] < k + treshold)
-                    {
+            for (int i = 0; i < RawDataArr.Length; i++)
+            {
 
-                        ByteData[element] = 255;
+                var mapped = MapValue(0, 1500, 0, RegionCount, RawDataArr[i]);
 
-
-                    }
-                    else
-                    {
-                        ByteData[element] = 0;
-
-                    }
-
-
-                }
-                Image<Gray, byte> image1 = new Image<Gray, byte>(512, 424);
-
-                image1.Bytes = ByteData;
-
-                ImageRegions.Add(image1);
-
+                //ColoredImage[(i / 512), (i - ((i / 512) * 512))] = Colors[(int)mapped];
+                RawDataCount[(int)mapped]++;
+                ImageList[(int)mapped][(i / 512), (i - ((i / 512) * 512))] = (int)mapped == 0 ? new Gray(0) : new Gray(255);
 
 
             }
 
-            return ImageRegions;
+            return ImageList; 
 
         }
-        private Image<Gray, byte> Sliding_Window(Image<Gray, byte> InputImage, System.Drawing.Size patchSize)
+        private List<System.Drawing.Rectangle> Sliding_Window(List<Image<Gray, byte>> InputImage, System.Drawing.Size patchSize)
 
         {
 
-
+            List<System.Drawing.Rectangle> Outrectangles = new List<System.Drawing.Rectangle>();
             Image<Gray, byte> ImagePatch = new Image<Gray, byte>(patchSize);
-            Image<Gray, byte> OutputImage = InputImage;
+            Image<Gray, byte> OutputImage = new Image<Gray, byte>(512, 424); 
             System.Drawing.Rectangle subrect = new System.Drawing.Rectangle(0, 0, patchSize.Width, patchSize.Height);
+            var help = 0; 
 
-
-
-            for (int h = 0; h <= (InputImage.Height - patchSize.Height); h += 35)
+            foreach (var IMG in InputImage)
             {
 
-                for (int w = 0; w <= (InputImage.Width - patchSize.Width); w += 32)
+                CvInvoke.MedianBlur(IMG, IMG, 5); 
+
+                for (int h = 0; h <= (IMG.Height - patchSize.Height); h += 35)
                 {
 
-                    subrect.X = w;
-                    subrect.Y = h;
-                    ImagePatch = InputImage.GetSubRect(subrect);
-
-
-                    List<float[]> newRegion = new List<float[]>();
-                    byte[] Pixels;
-                    System.Drawing.PointF[] centers;
-                    System.Drawing.Point[] contour ; 
-
-                    (Pixels, centers,contour) = ProceessImage(ImagePatch);
-                    var Kmeans = FrameObj.Calculate_Kmeans(centers, Pixels);
-                    var Regions = FrameObj.CalculateRegions(Kmeans);
-
-                    newRegion.Add(Regions.ToArray());
-
-                    Matrix<float> matrixk = new Matrix<float>(Object.To2D<float>(newRegion.ToArray()));
-
-                    var prediction = KNN.Predict(matrixk);
-
-
-                    if (prediction == 2)
+                    for (int w = 0; w <= (IMG.Width - patchSize.Width); w += 32)
                     {
-                        CvInvoke.Rectangle(OutputImage, subrect, new MCvScalar(255, 255, 255));
-                        CvInvoke.PutText(OutputImage, "2", new System.Drawing.Point(w + 64, h + 70), FontFace.HersheySimplex, 0.9, new MCvScalar(255, 255, 255));
+
+                        subrect.X = w;
+                        subrect.Y = h;
+                        ImagePatch = IMG.GetSubRect(subrect).Copy();
+                       
+                           
+                      
+
+                        help++;
+                        
+                        if (ImagePatch.Bytes.Where(x => x != 0).Count() != 0) {
+
+                            List<float[]> newRegion = new List<float[]>();
+                            byte[] Pixels;
+                            System.Drawing.PointF[] centers;
+                            System.Drawing.Point[] contour;
+
+                            //ImagePatch.Save("C:/Users/CPT Danko/Desktop/Test/" + help + ".png");
+                            (Pixels, centers, contour) = ProceessImage(ImagePatch);
+
+                            var Kmeans = FrameObj.Calculate_Kmeans(centers, Pixels);
+                            var Regions = FrameObj.CalculateRegions(Kmeans);
+
+                            newRegion.Add(Regions.ToArray());
+
+                            Matrix<float> matrixk = new Matrix<float>(Object.To2D<float>(newRegion.ToArray()));
+
+                            var prediction = KNN.Predict(matrixk);
+
+
+                            if (prediction == 4)
+                            {
+
+                                Outrectangles.Add(subrect);
+
+                            }
+                        }
 
                     }
 
+
+
                 }
-
-
-
             }
 
-            OutputImage.ROI = System.Drawing.Rectangle.Empty;
-            return OutputImage;
+            
+            return Outrectangles;
 
 
 
         }
+        private void Sliding_Window_Scan(List<Image<Gray, byte>> InputImage, System.Drawing.Size patchSize)
+
+        {
+
+            List<System.Drawing.Rectangle> Outrectangles = new List<System.Drawing.Rectangle>();
+            Image<Gray, byte> ImagePatch = new Image<Gray, byte>(patchSize);
+            Image<Gray, byte> OutputImage = new Image<Gray, byte>(512, 424);
+            System.Drawing.Rectangle subrect = new System.Drawing.Rectangle(0, 0, patchSize.Width, patchSize.Height);
+            var help = 0;
+
+            foreach (var IMG in InputImage)
+            {
+
+                CvInvoke.MedianBlur(IMG, IMG, 5);
+
+                for (int h = 0; h <= (IMG.Height - patchSize.Height); h += 35)
+                {
+
+                    for (int w = 0; w <= (IMG.Width - patchSize.Width); w += 32)
+                    {
+
+                        subrect.X = w;
+                        subrect.Y = h;
+                        ImagePatch = IMG.GetSubRect(subrect).Copy();
+
+
+
+
+                        help++;
+                        var Count = ImagePatch.Bytes.Where(x => x != 0).Count();
+
+                        if (Count > 100)
+                        {
+
+                            ImagePatch.Save("C:/Users/CPT Danko/Desktop/images_1/NegativeOne07_" + help+ ".png");
+                           
+                        }
+
+                    }
+
+
+
+                }
+            }
+
+
+            
+
+
+
+        }
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+
+            
+            List<float[]> newRegion = new List<float[]>();
+            byte[] Pixels;
+            System.Drawing.PointF[] centers;
+            System.Drawing.Point[] contour;
+
+            Image<Gray,byte> IMG = new Image<Gray, byte>("C:/Users/CPT Danko/Desktop/Test/"+TexBox.Text+".png"); 
+            (Pixels, centers, contour) = ProceessImage(IMG);
+            var Kmeans = FrameObj.Calculate_Kmeans(centers, Pixels);
+            var Regions = FrameObj.CalculateRegions(Kmeans);
+
+            newRegion.Add(Regions.ToArray());
+
+            Matrix<float> matrixk = new Matrix<float>(Object.To2D<float>(newRegion.ToArray()));
+
+            var prediction = KNN.Predict(matrixk);
+            DetectedClass.Content = prediction; 
+        }
+
+        private void Scan_Enviroment_Click(object sender, RoutedEventArgs e)
+        {
+
+            var Segmented = SegmentImage(15);
+            Sliding_Window_Scan(Segmented, new System.Drawing.Size(128, 140)); 
+
+
+        }
+
         public double MapValue(double a0, double a1, double b0, double b1, double a)
         {
             return b0 + (b1 - b0) * ((a - a0) / (a1 - a0));
         }
-    }
+        public List<System.Drawing.Rectangle> NonMaxSuppression(List<System.Drawing.Rectangle> Boxes, float overlapTresh)
+        {
 
+            if(Boxes.Count == 0)
+            {
+
+            }
+
+            List<float> X1_cor = new List<float>();
+            List<float> Y1_cor = new List<float>();
+            List<float> X2_cor = new List<float>();
+            List<float> Y2_cor = new List<float>();
+            List<float> Area = new List<float>();
+            List<float> vs = new List<float>();
+            List<float> pick = new List<float>(); 
+            List<System.Drawing.Rectangle> PickedBoxes = new List<System.Drawing.Rectangle>();
+            List<long> OldIndexes = new List<long>();
+            foreach (var box in Boxes)
+            {
+
+                X1_cor.Add(box.X);
+                X2_cor.Add(box.X+box.Width);
+                Y1_cor.Add(box.Y);
+                Y2_cor.Add(box.Y+box.Height);
+                Area.Add(((box.X+box.Width) - box.X + 1) * ((box.Y+box.Height) - box.Y + 1));
+
+            }
+
+
+            
+            
+            var nw =  np.argsort(np.array(Y2_cor.ToArray()));
+            var indxs = nw.GetData<Int64>().ToList();
+            var sss = nw.dtype; 
+            while (indxs.Count > 0 && OldIndexes.Count != indxs.Count)
+            {
+
+                var last = indxs.Count - 1;
+                var i = indxs[last];
+                pick.Add(i);
+                List<Int64> supress = new List<Int64>(); 
+
+                for(int k =0;k<last;k++)
+                {
+
+                    var j = indxs[k];
+
+                    var xx1 = Math.Max(X1_cor[(int)i], X1_cor[(int)j]);
+                    var yy1 = Math.Max(Y1_cor[(int)i], Y1_cor[(int)j]);
+                    var xx2 = Math.Min(X2_cor[(int)i], X2_cor[(int)j]);
+                    var yy2 = Math.Min(Y2_cor[(int)i], Y2_cor[(int)j]);
+
+                    var w = Math.Max(0, xx2 - xx1 + 1);
+                    var h = Math.Max(0, yy2 - yy1 + 1);
+
+                    var overlap = (w * h) / Area[(int)j];
+
+
+                    if (overlap > overlapTresh) supress.Add((int)k);
+                    
+                    
+                }
+                OldIndexes = indxs; 
+                indxs = indxs.Except(supress).ToList(); 
+
+            }
+            
+            foreach(var index in pick)
+            {
+
+                PickedBoxes.Add(Boxes[(int)index]); 
+
+            }
+            
+            return PickedBoxes;
+        }
+    }
+    
 }
