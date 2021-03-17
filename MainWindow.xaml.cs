@@ -176,139 +176,7 @@ namespace Object_Detection
 
             if (frameCount == 2 && IsDataLoaded == true && IsTrained == true )
             {
-                Image<Bgr, byte> ColoredImage = new Image<Bgr, byte>(512, 424);
-                Image<Bgr, byte> NewImage = new Image<Bgr, byte>(512, 424);
-                
-                var RawDataArr = RawData.ToArray();
-                int[] RawDataCount = new int[15];
-
-                List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>(); 
-                for (int k = 0; k < 15; k++)
-                {
-                    ImageList.Add(new Image<Gray, byte>(512, 424)); 
-                }
-                
-                for (int i = 0; i < RawDataArr.Length; i++)
-                {
-                    
-                    var mapped = MapValue(0, 1500, 0, 15, RawDataArr[i]); 
-
-                    ColoredImage[(i / 512), (i - ((i / 512) * 512))] = Colors[(int)mapped];
-                    RawDataCount[(int)mapped]++;
-                    ImageList[(int)mapped][(i / 512), (i - ((i / 512) * 512))] = (int)mapped == 0 ?new Gray(0):new Gray(255); 
-
-                    
-                }
-                
-                int help = 0; 
-                foreach(var gray in ImageList)
-                {
-                    CvInvoke.MedianBlur(gray, gray, 5);
-                    gray.Save("C:/Users/CPT Danko/Desktop/Test/" + help + ".png");
-                    help++; 
-                }
-                
-                
-                CvInvoke.MedianBlur(ColoredImage, ColoredImage, 5);
-                List<float> predictedClassed = new List<float>(); 
-
-                foreach(var IMG in ImageList)
-                {
-                    CvInvoke.MedianBlur(IMG, IMG, 5);
-                    System.Drawing.PointF[] cntrs;
-                    byte[] NonZeroPixel;
-                    List<float[]> newRegion = new List<float[]>();
-
-                    System.Drawing.Point[] contour; 
-
-                    (NonZeroPixel, cntrs,contour) = ProceessImage(IMG);
-
-                    VectorOfPoint vector = new VectorOfPoint(contour);
-
-                    var Points = FrameObj.Calculate_Kmeans(cntrs, NonZeroPixel);
-                    var Regions = FrameObj.CalculateRegions(Points);
-                    newRegion.Add(Regions.ToArray());
-
-
-                    Matrix<float> matrix = new Matrix<float>(Object.To2D<float>(newRegion.ToArray()));
-
-
-                    var prediction = KNN.Predict(matrix);
-                    DetectedClass.Content = prediction;
-                    predictedClassed.Add(prediction);
-                    VectorOfPoint DataVector = new VectorOfPoint(Datasets[(int)prediction-1].ImageContours[0]); 
-
-                    if (prediction == 4 
-                        //&& CvInvoke.MatchShapes(vector,DataVector,ContoursMatchType.I1) < 6
-                        )
-                    {
-                        var rotedRect = CvInvoke.MinAreaRect(vector);
-                        CvInvoke.Polylines(ColoredImage, Array.ConvertAll(rotedRect.GetVertices(), System.Drawing.Point.Round), true, new MCvScalar(255, 255, 255), 2);
-
-
-                    }
-
-                }
-
                
-
-                var CannyImage = ColoredImage.Canny(100, 200);
-
-                VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
-                
-               
-
-                CvInvoke.FindContours(CannyImage, contours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
-                
-
-                List<double> matcheShapes = new List<double>(); 
-                
-               
-                
-                BitmapSource bitmapSource = BitmapSourceConvert.ToBitmapSource(ColoredImage);
-                LoadCapture.Source = bitmapSource;
-                
-                
-
-
-                //Image<Gray, byte> Filteredimage = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
-                //CvInvoke.MedianBlur(image, image, 3);
-                //CvInvoke.BilateralFilter(image, Filteredimage, 9, 75, 75);
-
-
-                /*
-
-
-
-
-
-                            if (KNN != null && IsDataLoaded == true && IsTrained == true && depthpixels.Where(x => x > 0).Count() != 0)
-                            {
-
-
-                                System.Drawing.PointF[] cntrs;
-                                byte[] NonZeroPixel;
-                                List<float[]> newRegion = new List<float[]>();
-                                VectorOfPoint vector = new VectorOfPoint(); 
-
-
-                                (NonZeroPixel, cntrs) = ProceessImage(Filteredimage);
-                                var Points = FrameObj.Calculate_Kmeans(cntrs, NonZeroPixel);
-                                var Regions = FrameObj.CalculateRegions(Points);
-
-                                newRegion.Add(Regions.ToArray());
-
-
-                                Matrix<float> matrix = new Matrix<float>(Object.To2D<float>(newRegion.ToArray()));
-
-
-                                var prediction = KNN.Predict(matrix);
-                                Prediction.Content = prediction;
-
-                            }
-
-                            
-                frameCount = 0;
             }
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
             frameCount++;
@@ -612,10 +480,13 @@ namespace Object_Detection
             Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             image.Bytes = depthpixels;
 
-            Image<Bgr, byte> ColoredImage = new Image<Bgr, byte>(512, 424);
+            List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
+            Image<Bgr, byte> BGR = new Image<Bgr, byte>(512, 424);
 
 
-            var ImageList = SegmentImage(15); 
+
+
+            (ImageList,BGR) = SegmentImage(15); 
 
            
         
@@ -636,34 +507,46 @@ namespace Object_Detection
 
             }
 
-            var maxindex = intersectionCount.ToList().IndexOf(intersectionCount.Max()); 
-            CvInvoke.Rectangle(image, Boxes[maxindex], new MCvScalar(255, 255, 255));
-            CvInvoke.MedianBlur(ColoredImage, ColoredImage, 3);
 
-            /*
+            var maxindex = intersectionCount.Select((x, i) => new { Index = i, Value = x }).Where(x => x.Value == intersectionCount.Max()).Select(x => x.Index).ToList();
+
+            
+
+            List<float> X1 = new List<float>();
+            List<float> X2 = new List<float>();
+            List<float> Y1 = new List<float>();
+            List<float> Y2 = new List<float>();
+
+
             foreach (var box in Boxes)
             {
-
-                CvInvoke.Rectangle(image, box, new MCvScalar(255, 255, 255));
-                CvInvoke.MedianBlur(ColoredImage, ColoredImage, 3);
+                X1.Add(box.X);
+                X2.Add(box.X + box.Width);
+                Y1.Add(box.Y);
+                Y2.Add(box.Y + box.Height); 
+               
             }
-            */
 
+            System.Drawing.Rectangle finalrectangle = new System.Drawing.Rectangle(new System.Drawing.Point((int)X1.Min(), (int)Y1.Min()), new System.Drawing.Size((int)(X2.Max() - X1.Max()), (int)(Y2.Max() - Y1.Max())));
+
+            BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(BGR);
+            LoadCapture.Source = FrameBitmap;
+            CvInvoke.Rectangle(image, finalrectangle, new MCvScalar(255, 255, 255));
+          
             depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
-            BitmapSource bitmapSource = BitmapSourceConvert.ToBitmapSource(ColoredImage);
-            LoadCapture.Source = bitmapSource;
+       
 
 
         }
 
-        private List<Image<Gray, byte>> SegmentImage(int RegionCount)
+        private (List<Image<Gray, byte>>,Image<Bgr,byte>) SegmentImage(int RegionCount)
         {
 
             var RawDataArr = RawData.ToArray();
             int[] RawDataCount = new int[RegionCount];
 
             List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
-
+            Image<Bgr, byte> ColoredImage = new Image<Bgr, byte>(512, 424);
             for (int k = 0; k < RegionCount; k++)
             {
                 ImageList.Add(new Image<Gray, byte>(512, 424));
@@ -674,14 +557,14 @@ namespace Object_Detection
 
                 var mapped = MapValue(0, 1500, 0, RegionCount, RawDataArr[i]);
 
-                //ColoredImage[(i / 512), (i - ((i / 512) * 512))] = Colors[(int)mapped];
+                ColoredImage[(i / 512), (i - ((i / 512) * 512))] = Colors[(int)mapped];
                 RawDataCount[(int)mapped]++;
                 ImageList[(int)mapped][(i / 512), (i - ((i / 512) * 512))] = (int)mapped == 0 ? new Gray(0) : new Gray(255);
 
 
             }
 
-            return ImageList; 
+            return (ImageList,ColoredImage); 
 
         }
         private List<System.Drawing.Rectangle> Sliding_Window(List<Image<Gray, byte>> InputImage, System.Drawing.Size patchSize)
@@ -831,8 +714,11 @@ namespace Object_Detection
         private void Scan_Enviroment_Click(object sender, RoutedEventArgs e)
         {
 
-            var Segmented = SegmentImage(15);
-            Sliding_Window_Scan(Segmented, new System.Drawing.Size(128, 140)); 
+            List<Image<Gray, byte>> images = new List<Image<Gray, byte>>();
+            Image<Bgr, byte> Colored = new Image<Bgr, byte>(512,424); 
+
+            (images,Colored) = SegmentImage(15);
+            Sliding_Window_Scan(images, new System.Drawing.Size(128, 140)); 
 
 
         }
