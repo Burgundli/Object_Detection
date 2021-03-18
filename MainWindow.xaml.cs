@@ -13,7 +13,8 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Numpy; 
+using Numpy;
+using System.Diagnostics;
 
 namespace Object_Detection
 {
@@ -40,7 +41,7 @@ namespace Object_Detection
         private List<int> RawData = new List<int>();
         int frameCount = 0;
         List<Bgr> Colors = new List<Bgr>();
-
+        private int help = 0; 
 
 
 
@@ -170,17 +171,76 @@ namespace Object_Detection
         private unsafe void RenderPixels()
 
         {
-            /*
+            
             Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             image.Bytes = depthpixels;
 
-            if (frameCount == 2 && IsDataLoaded == true && IsTrained == true )
+            if (frameCount == 5 && IsDataLoaded == true && IsTrained == true )
             {
-               
+                List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
+                Image<Bgr, byte> BGR = new Image<Bgr, byte>(512, 424);
+
+
+
+
+                (ImageList, BGR) = SegmentImage(15);
+
+
+
+                List<System.Drawing.Rectangle> Boxes = Sliding_Window(ImageList, new System.Drawing.Size(128, 140));
+                int[] intersectionCount = new int[Boxes.Count];
+
+                for (int c = 0; c < Boxes.Count; c++)
+                {
+                    for (int k = 0; k < Boxes.Count; k++)
+                    {
+                        if (Boxes[c].IntersectsWith(Boxes[k]))
+                        {
+                            intersectionCount[c]++;
+                        }
+
+                    }
+
+
+                }
+
+
+                var maxindex = intersectionCount.Select((x, i) => new { Index = i, Value = x }).Where(x => x.Value == intersectionCount.Max()).Select(x => x.Index).ToList();
+
+
+
+                List<float> X1 = new List<float>();
+                List<float> X2 = new List<float>();
+                List<float> Y1 = new List<float>();
+                List<float> Y2 = new List<float>();
+
+
+                foreach (var box in maxindex)
+                {
+                    X1.Add(Boxes[box].X);
+                    X2.Add(Boxes[box].X + Boxes[box].Width);
+                    Y1.Add(Boxes[box].Y);
+                    Y2.Add(Boxes[box].Y + Boxes[box].Height);
+                    CvInvoke.Rectangle(BGR, Boxes[box], new MCvScalar(255, 255, 255));
+                }
+
+                if(X1.Count != 0)
+                {
+
+                    System.Drawing.Rectangle finalrectangle = new System.Drawing.Rectangle(new System.Drawing.Point((int)X1.Min(), (int)Y1.Min()), new System.Drawing.Size((int)(X2.Max() - X1.Max()), (int)(Y2.Max() - Y1.Max())));
+                    CvInvoke.Rectangle(image, finalrectangle, new MCvScalar(255, 255, 255));
+                }
+                
+                BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(BGR);
+                LoadCapture.Source = FrameBitmap;
+
+
+                depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
+                frameCount = 0; 
             }
-            depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
+            
             frameCount++;
-            */
+            
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -459,10 +519,12 @@ namespace Object_Detection
         private void Test_Accuracy_Click(object sender, RoutedEventArgs e)
         {
 
+            var time = Stopwatch.StartNew(); 
             SplitData();
             Train_KNN();
             Test_KNN();
-
+            time.Stop();
+            Prediction.Content = time.ElapsedMilliseconds+"ms"; 
 
         }
 
@@ -480,60 +542,7 @@ namespace Object_Detection
             Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             image.Bytes = depthpixels;
 
-            List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
-            Image<Bgr, byte> BGR = new Image<Bgr, byte>(512, 424);
-
-
-
-
-            (ImageList,BGR) = SegmentImage(15); 
-
-           
-        
-            List<System.Drawing.Rectangle> Boxes = Sliding_Window(ImageList, new System.Drawing.Size(128, 140));
-            int[] intersectionCount = new int[Boxes.Count]; 
-
-            for (int c = 0; c < Boxes.Count; c++)
-            {
-                for(int k = 0; k < Boxes.Count; k++)
-                {
-                    if (Boxes[c].IntersectsWith(Boxes[k]))
-                    {
-                        intersectionCount[c]++; 
-                    }
-
-                }
-                
-
-            }
-
-
-            var maxindex = intersectionCount.Select((x, i) => new { Index = i, Value = x }).Where(x => x.Value == intersectionCount.Max()).Select(x => x.Index).ToList();
-
             
-
-            List<float> X1 = new List<float>();
-            List<float> X2 = new List<float>();
-            List<float> Y1 = new List<float>();
-            List<float> Y2 = new List<float>();
-
-
-            foreach (var box in Boxes)
-            {
-                X1.Add(box.X);
-                X2.Add(box.X + box.Width);
-                Y1.Add(box.Y);
-                Y2.Add(box.Y + box.Height); 
-               
-            }
-
-            System.Drawing.Rectangle finalrectangle = new System.Drawing.Rectangle(new System.Drawing.Point((int)X1.Min(), (int)Y1.Min()), new System.Drawing.Size((int)(X2.Max() - X1.Max()), (int)(Y2.Max() - Y1.Max())));
-
-            BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(BGR);
-            LoadCapture.Source = FrameBitmap;
-            CvInvoke.Rectangle(image, finalrectangle, new MCvScalar(255, 255, 255));
-          
-            depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
        
 
 
@@ -646,7 +655,7 @@ namespace Object_Detection
             Image<Gray, byte> ImagePatch = new Image<Gray, byte>(patchSize);
             Image<Gray, byte> OutputImage = new Image<Gray, byte>(512, 424);
             System.Drawing.Rectangle subrect = new System.Drawing.Rectangle(0, 0, patchSize.Width, patchSize.Height);
-            var help = 0;
+            
 
             foreach (var IMG in InputImage)
             {
@@ -666,14 +675,14 @@ namespace Object_Detection
 
 
 
-                        help++;
+                        
                         var Count = ImagePatch.Bytes.Where(x => x != 0).Count();
 
                         if (Count > 100)
                         {
-
+                            
                             ImagePatch.Save("C:/Users/CPT Danko/Desktop/images_1/NegativeOne07_" + help+ ".png");
-                           
+                            help++;
                         }
 
                     }
@@ -715,10 +724,20 @@ namespace Object_Detection
         {
 
             List<Image<Gray, byte>> images = new List<Image<Gray, byte>>();
-            Image<Bgr, byte> Colored = new Image<Bgr, byte>(512,424); 
+            Image<Bgr, byte> Colored = new Image<Bgr, byte>(512,424);
+            List<int> indexes = new List<int>(); 
+
+           
 
             (images,Colored) = SegmentImage(15);
-            Sliding_Window_Scan(images, new System.Drawing.Size(128, 140)); 
+
+
+            for (int c = 0; c < 3; c++)
+            
+            {
+                Sliding_Window_Scan(images, new System.Drawing.Size(128, 140));
+            }
+            help = 0; 
 
 
         }
@@ -806,3 +825,4 @@ namespace Object_Detection
     }
     
 }
+  
