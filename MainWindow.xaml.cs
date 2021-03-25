@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -46,6 +47,7 @@ namespace Object_Detection
         BackgroundWorker bckgroundworker1 = new BackgroundWorker();
         BackgroundWorker Rendering = new BackgroundWorker(); 
         private string[] images = null;
+        bool TaskCompleted = false; 
 
 
         public MainWindow()
@@ -93,12 +95,12 @@ namespace Object_Detection
 
         private void Rendering_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            
+            TaskCompleted = true; 
         }
 
         private void Rendering_DoWork(object sender, DoWorkEventArgs e)
         {
-
+            var abc = Stopwatch.StartNew(); 
             Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             image.Bytes = depthpixels;
             List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
@@ -159,6 +161,7 @@ namespace Object_Detection
 
             BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(BGR);
             
+            
             LoadCapture.Dispatcher.Invoke(()=>
             {
                 LoadCapture.Source = FrameBitmap;
@@ -167,10 +170,10 @@ namespace Object_Detection
             depthbitmap.Dispatcher.Invoke(() =>
             {
                 depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
-            }); 
+            });
 
-            
-            
+            abc.Stop();
+            var time = abc.ElapsedMilliseconds; 
 
         }
 
@@ -325,12 +328,16 @@ namespace Object_Detection
 
                 }
             }
-            if (IsFrameProcessed && !Rendering.IsBusy && IsDataLoaded && IsTrained)
+            if (IsFrameProcessed)
             {
 
-                Rendering.RunWorkerAsync();
-                
+               
+                RenderPixels();
 
+            }
+            if (!Rendering.IsBusy && IsDataLoaded && IsTrained)
+            {
+                Rendering.RunWorkerAsync();
             }
 
 
@@ -367,9 +374,17 @@ namespace Object_Detection
         private unsafe void RenderPixels()
 
         {
-            Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
-            image.Bytes = depthpixels;
-            depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
+            Thread.CurrentThread.
+            if (!TaskCompleted)
+            {
+                depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth, 0);
+            }
+            else
+            {
+                TaskCompleted = false; 
+            }
+            
+            
 
         }
         private void Processing()
@@ -397,7 +412,7 @@ namespace Object_Detection
                 kinectSensor = null;
             }
             if (bckgroundworker1.IsBusy) bckgroundworker1.CancelAsync();
-
+            if (Rendering.IsBusy) Rendering.CancelAsync();
         }
 
         private void CaptureBtn_Click(object sender, RoutedEventArgs e)
@@ -440,7 +455,7 @@ namespace Object_Detection
             Progress.Maximum = images.Length;
            if (!bckgroundworker1.IsBusy) bckgroundworker1.RunWorkerAsync();
             Load_Status.Content = "Loading";
-
+            
         }
         private void Train_KNN()
         {
