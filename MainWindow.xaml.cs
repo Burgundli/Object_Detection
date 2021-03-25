@@ -4,17 +4,18 @@ using Emgu.CV.ML;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Microsoft.Kinect;
+using Numpy;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Numpy;
-using System.Diagnostics;
 
 namespace Object_Detection
 {
@@ -41,12 +42,15 @@ namespace Object_Detection
         private List<int> RawData = new List<int>();
         int frameCount = 0;
         List<Bgr> Colors = new List<Bgr>();
-        private int help = 0; 
-
+        private int help = 0;
+        BackgroundWorker bckgroundworker1 = new BackgroundWorker();
+        BackgroundWorker Rendering = new BackgroundWorker(); 
+        private string[] images = null;
 
 
         public MainWindow()
         {
+
             // Set up of  the Sensor and reader 
             kinectSensor = KinectSensor.GetDefault();
             depthFrameReader = kinectSensor.DepthFrameSource.OpenReader();
@@ -60,12 +64,25 @@ namespace Object_Detection
             kinectSensor.Open();
             StatusText = kinectSensor.IsAvailable ? "Running" : "Turned off";
             DataContext = this;   //  - window object is used as the view model for default binding source of objects || WIKI : Data context is a concept that allows elements to inherit information from their parent elements about the data source that is used for binding, as well as other characteristics of the binding, such as the path. 
+            bckgroundworker1.WorkerSupportsCancellation = true;
+            bckgroundworker1.WorkerReportsProgress = true;
+            bckgroundworker1.ProgressChanged += ProgressChanged;
+            bckgroundworker1.DoWork += DoWork;
+
+            Rendering.WorkerSupportsCancellation = true;
+            Rendering.WorkerReportsProgress = true;
+            Rendering.ProgressChanged += Rendering_ProgressChanged;
+            Rendering.DoWork += Rendering_DoWork;
+            // not required for this question, but is a helpful event to handle
+            bckgroundworker1.RunWorkerCompleted += Bckgroundworker1_RunWorkerCompleted;
+            Rendering.RunWorkerCompleted += Rendering_RunWorkerCompleted;
+            images = Directory.GetFiles("C:/Users/CPT Danko/Desktop/images_1");
 
             RawData.Clear();
             Random rnd = new Random();
             for (int k = 0; k < 15; k++)
             {
-               
+
 
                 Bgr colorB = new Bgr((byte)rnd.Next(256), (byte)rnd.Next(256), (byte)rnd.Next(256));
                 Colors.Add(colorB);
@@ -73,6 +90,182 @@ namespace Object_Detection
             }
             InitializeComponent();
         }
+
+        private void Rendering_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            
+        }
+
+        private void Rendering_DoWork(object sender, DoWorkEventArgs e)
+        {
+
+            Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
+            image.Bytes = depthpixels;
+            List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
+            Image<Bgr, byte> BGR = new Image<Bgr, byte>(512, 424);
+
+
+
+
+            (ImageList, BGR) = SegmentImage(15);
+
+
+
+
+            List<System.Drawing.Rectangle> Boxes = Sliding_Window(ImageList, new System.Drawing.Size(128, 140));
+
+            int[] intersectionCount = new int[Boxes.Count];
+
+            for (int c = 0; c < Boxes.Count; c++)
+            {
+                for (int k = 0; k < Boxes.Count; k++)
+                {
+                    if (Boxes[c].IntersectsWith(Boxes[k]))
+                    {
+                        intersectionCount[c]++;
+                    }
+
+                }
+
+
+            }
+
+
+            var maxindex = intersectionCount.Select((x, i) => new { Index = i, Value = x }).Where(x => x.Value == intersectionCount.Max()).Select(x => x.Index).ToList();
+
+
+
+            List<float> X1 = new List<float>();
+            List<float> X2 = new List<float>();
+            List<float> Y1 = new List<float>();
+            List<float> Y2 = new List<float>();
+
+
+            foreach (var box in maxindex)
+            {
+                X1.Add(Boxes[box].X);
+                X2.Add(Boxes[box].X + Boxes[box].Width);
+                Y1.Add(Boxes[box].Y);
+                Y2.Add(Boxes[box].Y + Boxes[box].Height);
+                CvInvoke.Rectangle(BGR, Boxes[box], new MCvScalar(255, 255, 255));
+            }
+
+            if (X1.Count != 0)
+            {
+
+                System.Drawing.Rectangle finalrectangle = new System.Drawing.Rectangle(new System.Drawing.Point((int)X1.Min(), (int)Y1.Min()), new System.Drawing.Size((int)(X2.Max() - X1.Max()), (int)(Y2.Max() - Y1.Max())));
+                CvInvoke.Rectangle(image, finalrectangle, new MCvScalar(255, 255, 255));
+            }
+
+            BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(BGR);
+            
+            LoadCapture.Dispatcher.Invoke(()=>
+            {
+                LoadCapture.Source = FrameBitmap;
+            });
+
+            depthbitmap.Dispatcher.Invoke(() =>
+            {
+                depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
+            }); 
+
+            
+            
+
+        }
+
+        private void Rendering_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            
+        }
+
+        private void Bckgroundworker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            Load_Status.Content = "Completed";
+        }
+
+        private void DoWork(object sender, DoWorkEventArgs e)
+        {
+
+
+            for (var image = 0; image < images.Length; image++)
+            {
+                var SelectImg = new Image<Gray, byte>(images[image]);
+                var ImgName = Path.GetFileName(images[image]);
+                var label = int.Parse(ImgName.Substring(ImgName.IndexOf("_") - 2, 2));
+                var index = Datasets.FindIndex(x => x.Class == label);
+
+
+
+                System.Drawing.PointF[] centers;
+                byte[] NoZeroPxls;
+                List<Image<Gray, byte>> NewImage = new List<Image<Gray, byte>>();
+                System.Drawing.Point[] contour;
+
+                (NoZeroPxls, centers, contour) = ProceessImage(SelectImg);
+
+                var LabeledArray = FrameObj.Calculate_Kmeans(centers, NoZeroPxls, SelectImg.Size);
+                var Regions = FrameObj.CalculateRegions(LabeledArray);
+
+                Image<Bgr, byte> colored = new Image<Bgr, byte>(512, 424);
+
+
+
+
+                if (index > -1)
+                {
+                    Datasets[index].Images.Add(SelectImg);
+                    Datasets[index].RegionsValues.Add(Regions.ToArray());
+                    Datasets[index].ImageContours.Add(contour);
+                    Datasets[index].NonZeroPixels.Add(NoZeroPxls.Length);
+                }
+                else
+                {
+                    ImageDataset img = new ImageDataset();
+                    img.Images = new List<Image<Gray, byte>>();
+                    img.RegionsValues = new List<float[]>();
+                    img.ImageContours = new List<System.Drawing.Point[]>();
+                    img.NonZeroPixels = new List<int>();
+                    img.Images.Add(SelectImg);
+                    img.Class = label;
+                    img.RegionsValues.Add(Regions.ToArray());
+                    img.ImageContours.Add(contour);
+                    img.NonZeroPixels.Add(NoZeroPxls.Length);
+                    Datasets.Add(img);
+
+                }
+
+
+
+
+
+                bckgroundworker1.ReportProgress(image);
+
+
+
+
+
+
+            }
+
+
+
+            IsDataLoaded = true;
+            frameCount = 0;
+        }
+
+        private void ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+
+            Progress.Value = e.ProgressPercentage;
+            var perc = ((decimal)(e.ProgressPercentage)) / ((decimal)(images.Length));
+            Percentual.Content = (int)(Math.Round(perc, 2) * 100) + "%";
+
+
+        }
+
+
+
         public ImageSource ImageSource
         {
             get
@@ -132,9 +325,12 @@ namespace Object_Detection
 
                 }
             }
-            if (IsFrameProcessed)
+            if (IsFrameProcessed && !Rendering.IsBusy && IsDataLoaded && IsTrained)
             {
-                RenderPixels();
+
+                Rendering.RunWorkerAsync();
+                
+
             }
 
 
@@ -149,7 +345,7 @@ namespace Object_Detection
             {
                 ushort depth = framedata[i];
 
-                
+
 
                 if (depth >= minDepth && depth <= maxDepth && depth != 0 && ((i / frameDescription.Width) > 50) && (i / frameDescription.Width < 424 - 50) && ((i - ((i / frameDescription.Width) * frameDescription.Width)) > 50) && ((i - ((i / frameDescription.Width) * frameDescription.Width)) < 512 - 50))
                 {
@@ -171,76 +367,17 @@ namespace Object_Detection
         private unsafe void RenderPixels()
 
         {
-            
             Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             image.Bytes = depthpixels;
+            depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
 
-            if (frameCount == 5 && IsDataLoaded == true && IsTrained == true )
-            {
-                List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
-                Image<Bgr, byte> BGR = new Image<Bgr, byte>(512, 424);
-
-
-
-
-                (ImageList, BGR) = SegmentImage(15);
-
-
-
-                List<System.Drawing.Rectangle> Boxes = Sliding_Window(ImageList, new System.Drawing.Size(128, 140));
-                int[] intersectionCount = new int[Boxes.Count];
-
-                for (int c = 0; c < Boxes.Count; c++)
-                {
-                    for (int k = 0; k < Boxes.Count; k++)
-                    {
-                        if (Boxes[c].IntersectsWith(Boxes[k]))
-                        {
-                            intersectionCount[c]++;
-                        }
-
-                    }
-
-
-                }
-
-
-                var maxindex = intersectionCount.Select((x, i) => new { Index = i, Value = x }).Where(x => x.Value == intersectionCount.Max()).Select(x => x.Index).ToList();
-
-
-
-                List<float> X1 = new List<float>();
-                List<float> X2 = new List<float>();
-                List<float> Y1 = new List<float>();
-                List<float> Y2 = new List<float>();
-
-
-                foreach (var box in maxindex)
-                {
-                    X1.Add(Boxes[box].X);
-                    X2.Add(Boxes[box].X + Boxes[box].Width);
-                    Y1.Add(Boxes[box].Y);
-                    Y2.Add(Boxes[box].Y + Boxes[box].Height);
-                    CvInvoke.Rectangle(BGR, Boxes[box], new MCvScalar(255, 255, 255));
-                }
-
-                if(X1.Count != 0)
-                {
-
-                    System.Drawing.Rectangle finalrectangle = new System.Drawing.Rectangle(new System.Drawing.Point((int)X1.Min(), (int)Y1.Min()), new System.Drawing.Size((int)(X2.Max() - X1.Max()), (int)(Y2.Max() - Y1.Max())));
-                    CvInvoke.Rectangle(image, finalrectangle, new MCvScalar(255, 255, 255));
-                }
-                
-                BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(BGR);
-                LoadCapture.Source = FrameBitmap;
-
-
-                depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
-                frameCount = 0; 
-            }
+        }
+        private void Processing()
+        {
             
-            frameCount++;
-            
+
+
+
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -259,6 +396,7 @@ namespace Object_Detection
                 kinectSensor.Close();
                 kinectSensor = null;
             }
+            if (bckgroundworker1.IsBusy) bckgroundworker1.CancelAsync();
 
         }
 
@@ -299,116 +437,9 @@ namespace Object_Detection
         {
 
             var images = Directory.GetFiles("C:/Users/CPT Danko/Desktop/images_1");
-            double oneperc = 100.00 / images.Length;
-
-            if (File.Exists("C:/Users/CPT Danko/Pictures/ObjectValues.txt"))
-            {
-                File.Delete("C:/Users/CPT Danko/Pictures/ObjectValues.txt");
-
-            }
-
-
-            for (var image = 0; image < images.Length; image++)
-            {
-                var SelectImg = new Image<Gray, byte>(images[image]);
-                var ImgName = Path.GetFileName(images[image]);
-                var label = int.Parse(ImgName.Substring(ImgName.IndexOf("_") - 2, 2));
-                var index = Datasets.FindIndex(x => x.Class == label);
-
-
-
-                System.Drawing.PointF[] centers;
-                byte[] NoZeroPxls;
-                List<Image<Gray, byte>> NewImage = new List<Image<Gray, byte>>();
-                System.Drawing.Point[] contour;  
-
-                (NoZeroPxls, centers,contour) = ProceessImage(SelectImg);
-
-                var LabeledArray = FrameObj.Calculate_Kmeans(centers, NoZeroPxls);
-                var Regions = FrameObj.CalculateRegions(LabeledArray);
-
-                Image<Bgr, byte> colored = new Image<Bgr, byte>(512, 424);
-
-
-                if (image == 5)
-                {
-                    foreach (var pixel in LabeledArray)
-                    {
-                        switch (pixel.Z)
-                        {
-                            case 0:
-                                colored[(int)(pixel.Y), (int)(pixel.X)] = new Bgr(0, 255, 0);
-                                break;
-                            case 1:
-                                colored[(int)(pixel.Y), (int)(pixel.X)] = new Bgr(0, 0, 255);
-                                break;
-                            case 2:
-                                colored[(int)(pixel.Y), (int)(pixel.X)] = new Bgr(255, 0, 0);
-                                break;
-                            case 3:
-                                colored[(int)(pixel.Y), (int)(pixel.X)] = new Bgr(0, 247, 255);
-                                break;
-
-
-                        }
-
-                    }
-
-                    CvInvoke.Polylines(colored, Array.ConvertAll(centers, System.Drawing.Point.Round), true, new MCvScalar(100, 50, 30), 2);
-                    //BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(colored);
-                    //LoadCapture.Source = FrameBitmap;
-
-                }
-
-
-                if (index > -1)
-                {
-                    Datasets[index].Images.Add(SelectImg);
-                    Datasets[index].RegionsValues.Add(Regions.ToArray());
-                    Datasets[index].ImageContours.Add(contour);
-                    Datasets[index].NonZeroPixels.Add(NoZeroPxls.Length); 
-                }
-                else
-                {
-                    ImageDataset img = new ImageDataset();
-                    img.Images = new List<Image<Gray, byte>>();
-                    img.RegionsValues = new List<float[]>();
-                    img.ImageContours = new List<System.Drawing.Point[]>();
-                    img.NonZeroPixels = new List<int>(); 
-                    img.Images.Add(SelectImg);
-                    img.Class = label;
-                    img.RegionsValues.Add(Regions.ToArray());
-                    img.ImageContours.Add(contour); 
-                    img.NonZeroPixels.Add(NoZeroPxls.Length); 
-                    Datasets.Add(img);
-
-                }
-
-
-
-                string ImageTrainData = label + "*" + "*" + ImgName;
-                foreach (var region in Regions)
-                {
-                    ImageTrainData += region.ToString() + "*";
-
-
-                }
-
-                Progress.Value += oneperc;
-
-
-                File.AppendAllText("C:/Users/CPT Danko/Pictures/ObjectValues.txt", ImageTrainData + Environment.NewLine);
-
-
-
-            }
-
-
-
-            IsDataLoaded = true;
-            frameCount = 0; 
-
-
+            Progress.Maximum = images.Length;
+           if (!bckgroundworker1.IsBusy) bckgroundworker1.RunWorkerAsync();
+            Load_Status.Content = "Loading";
 
         }
         private void Train_KNN()
@@ -441,7 +472,7 @@ namespace Object_Detection
 
             KNN.DefaultK = 10;
             KNN.IsClassifier = true;
-           
+
             KNN.Train(MatTrainData, Emgu.CV.ML.MlEnum.DataLayoutType.RowSample, MatClass);
 
         }
@@ -483,15 +514,130 @@ namespace Object_Detection
             Precision.Content = results;
 
         }
+        private void Load_Data()
+        {
+            var images = Directory.GetFiles("C:/Users/CPT Danko/Desktop/images_1");
+
+
+            if (File.Exists("C:/Users/CPT Danko/Pictures/ObjectValues.txt"))
+            {
+                File.Delete("C:/Users/CPT Danko/Pictures/ObjectValues.txt");
+
+            }
+
+
+            for (var image = 0; image < images.Length; image++)
+            {
+                var SelectImg = new Image<Gray, byte>(images[image]);
+                var ImgName = Path.GetFileName(images[image]);
+                var label = int.Parse(ImgName.Substring(ImgName.IndexOf("_") - 2, 2));
+                var index = Datasets.FindIndex(x => x.Class == label);
+
+
+
+                System.Drawing.PointF[] centers;
+                byte[] NoZeroPxls;
+                List<Image<Gray, byte>> NewImage = new List<Image<Gray, byte>>();
+                System.Drawing.Point[] contour;
+
+                (NoZeroPxls, centers, contour) = ProceessImage(SelectImg);
+
+                var LabeledArray = FrameObj.Calculate_Kmeans(centers, NoZeroPxls, SelectImg.Size);
+                var Regions = FrameObj.CalculateRegions(LabeledArray);
+
+                Image<Bgr, byte> colored = new Image<Bgr, byte>(512, 424);
+
+
+                if (label == 6)
+                {
+                    foreach (var pixel in LabeledArray)
+                    {
+                        switch (pixel.Z)
+                        {
+                            case 0:
+                                colored[(int)(pixel.Y), (int)(pixel.X)] = new Bgr(0, 255, 0);
+                                break;
+                            case 1:
+                                colored[(int)(pixel.Y), (int)(pixel.X)] = new Bgr(0, 0, 255);
+                                break;
+                            case 2:
+                                colored[(int)(pixel.Y), (int)(pixel.X)] = new Bgr(255, 0, 0);
+                                break;
+                            case 3:
+                                colored[(int)(pixel.Y), (int)(pixel.X)] = new Bgr(0, 247, 255);
+                                break;
+
+
+                        }
+
+                    }
+
+                    CvInvoke.Polylines(colored, Array.ConvertAll(centers, System.Drawing.Point.Round), true, new MCvScalar(255, 255, 255), 1);
+                    //BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(colored);
+                    //LoadCapture.Source = FrameBitmap;
+                    //colored.Save("C:/Users/CPT Danko/Desktop/Fotky_bakalárka/06.png"); 
+                }
+
+
+                if (index > -1)
+                {
+                    Datasets[index].Images.Add(SelectImg);
+                    Datasets[index].RegionsValues.Add(Regions.ToArray());
+                    Datasets[index].ImageContours.Add(contour);
+                    Datasets[index].NonZeroPixels.Add(NoZeroPxls.Length);
+                }
+                else
+                {
+                    ImageDataset img = new ImageDataset();
+                    img.Images = new List<Image<Gray, byte>>();
+                    img.RegionsValues = new List<float[]>();
+                    img.ImageContours = new List<System.Drawing.Point[]>();
+                    img.NonZeroPixels = new List<int>();
+                    img.Images.Add(SelectImg);
+                    img.Class = label;
+                    img.RegionsValues.Add(Regions.ToArray());
+                    img.ImageContours.Add(contour);
+                    img.NonZeroPixels.Add(NoZeroPxls.Length);
+                    Datasets.Add(img);
+
+                }
+
+
+
+                string ImageTrainData = label + "*" + "*" + ImgName;
+                foreach (var region in Regions)
+                {
+                    ImageTrainData += region.ToString() + "*";
+
+
+                }
+
+
+
+
+                File.AppendAllText("C:/Users/CPT Danko/Pictures/ObjectValues.txt", ImageTrainData + Environment.NewLine);
+
+
+
+            }
+
+
+
+            IsDataLoaded = true;
+            frameCount = 0;
+
+
+        }
 
         private (byte[] ProcessedPixels, System.Drawing.PointF[] centroids, System.Drawing.Point[]) ProceessImage(Image<Gray, byte> FilteredImage)
         {
 
             UMat FrameCannyImage = new UMat();
-            CvInvoke.Canny(FilteredImage, FrameCannyImage, 100,200);
+            CvInvoke.Canny(FilteredImage, FrameCannyImage, 100, 200);
             VectorOfVectorOfPoint FrameImageContours = new VectorOfVectorOfPoint();
             CvInvoke.FindContours(FrameCannyImage, FrameImageContours, null, RetrType.External, ChainApproxMethod.ChainApproxSimple);
             VectorOfPoint FrameAppContour = new VectorOfPoint(2);
+            Image<Gray, byte> image = new Image<Gray, byte>(512, 424);
 
             for (int k = 0; k < FrameImageContours.Size; k++)
             {
@@ -501,30 +647,31 @@ namespace Object_Detection
                 if (CvInvoke.ContourArea(contour) > CvInvoke.ContourArea(FrameAppContour))
                 {
                     FrameAppContour = contour;
+
+
                 }
 
             }
 
-
             RotatedRect FrameRotatedRect = CvInvoke.MinAreaRect(FrameAppContour);
             System.Drawing.PointF[] FrameInitCenters = FrameRotatedRect.GetVertices();
 
-            System.Drawing.Point[] contours = FrameAppContour.ToArray(); 
+            System.Drawing.Point[] contours = FrameAppContour.ToArray();
             byte[] NonZeroPixels = FilteredImage.Bytes;
-            NonZeroPixels = NonZeroPixels.Where(x => x != 0).ToArray(); 
 
-            return (NonZeroPixels, FrameInitCenters,FrameAppContour.ToArray());
+
+            return (NonZeroPixels, FrameInitCenters, FrameAppContour.ToArray());
         }
 
         private void Test_Accuracy_Click(object sender, RoutedEventArgs e)
         {
 
-            var time = Stopwatch.StartNew(); 
+            var time = Stopwatch.StartNew();
             SplitData();
             Train_KNN();
             Test_KNN();
             time.Stop();
-            Prediction.Content = time.ElapsedMilliseconds+"ms"; 
+            Prediction.Content = time.ElapsedMilliseconds + "ms";
 
         }
 
@@ -532,7 +679,7 @@ namespace Object_Detection
         {
             Train_KNN_Full();
             IsTrained = true;
-            frameCount = 0; 
+            frameCount = 0;
         }
 
         private void Test_Click(object sender, RoutedEventArgs e)
@@ -542,13 +689,13 @@ namespace Object_Detection
             Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             image.Bytes = depthpixels;
 
-            
-       
+
+
 
 
         }
 
-        private (List<Image<Gray, byte>>,Image<Bgr,byte>) SegmentImage(int RegionCount)
+        private (List<Image<Gray, byte>>, Image<Bgr, byte>) SegmentImage(int RegionCount)
         {
 
             var RawDataArr = RawData.ToArray();
@@ -573,7 +720,7 @@ namespace Object_Detection
 
             }
 
-            return (ImageList,ColoredImage); 
+            return (ImageList, ColoredImage);
 
         }
         private List<System.Drawing.Rectangle> Sliding_Window(List<Image<Gray, byte>> InputImage, System.Drawing.Size patchSize)
@@ -582,14 +729,14 @@ namespace Object_Detection
 
             List<System.Drawing.Rectangle> Outrectangles = new List<System.Drawing.Rectangle>();
             Image<Gray, byte> ImagePatch = new Image<Gray, byte>(patchSize);
-            Image<Gray, byte> OutputImage = new Image<Gray, byte>(512, 424); 
+            Image<Gray, byte> OutputImage = new Image<Gray, byte>(512, 424);
             System.Drawing.Rectangle subrect = new System.Drawing.Rectangle(0, 0, patchSize.Width, patchSize.Height);
-            var help = 0; 
+            var help = 0;
 
             foreach (var IMG in InputImage)
             {
 
-                CvInvoke.MedianBlur(IMG, IMG, 5); 
+                CvInvoke.MedianBlur(IMG, IMG, 5);
 
                 for (int h = 0; h <= (IMG.Height - patchSize.Height); h += 35)
                 {
@@ -600,23 +747,27 @@ namespace Object_Detection
                         subrect.X = w;
                         subrect.Y = h;
                         ImagePatch = IMG.GetSubRect(subrect).Copy();
-                       
-                           
-                      
+
+
+
 
                         help++;
-                        
-                        if (ImagePatch.Bytes.Where(x => x != 0).Count() != 0) {
+
+                        if (ImagePatch.Bytes.Where(x => x != 0).Count() != 0)
+                        {
 
                             List<float[]> newRegion = new List<float[]>();
                             byte[] Pixels;
                             System.Drawing.PointF[] centers;
                             System.Drawing.Point[] contour;
+                            VectorOfVectorOfPoint dasd = new VectorOfVectorOfPoint();
 
-                            //ImagePatch.Save("C:/Users/CPT Danko/Desktop/Test/" + help + ".png");
+
+                            ImagePatch.Save("C:/Users/CPT Danko/Desktop/Test/" + help + ".png");
                             (Pixels, centers, contour) = ProceessImage(ImagePatch);
 
-                            var Kmeans = FrameObj.Calculate_Kmeans(centers, Pixels);
+
+                            var Kmeans = FrameObj.Calculate_Kmeans(centers, Pixels, ImagePatch.Size);
                             var Regions = FrameObj.CalculateRegions(Kmeans);
 
                             newRegion.Add(Regions.ToArray());
@@ -641,7 +792,7 @@ namespace Object_Detection
                 }
             }
 
-            
+
             return Outrectangles;
 
 
@@ -655,7 +806,7 @@ namespace Object_Detection
             Image<Gray, byte> ImagePatch = new Image<Gray, byte>(patchSize);
             Image<Gray, byte> OutputImage = new Image<Gray, byte>(512, 424);
             System.Drawing.Rectangle subrect = new System.Drawing.Rectangle(0, 0, patchSize.Width, patchSize.Height);
-            
+
 
             foreach (var IMG in InputImage)
             {
@@ -675,13 +826,13 @@ namespace Object_Detection
 
 
 
-                        
+
                         var Count = ImagePatch.Bytes.Where(x => x != 0).Count();
 
                         if (Count > 100)
                         {
-                            
-                            ImagePatch.Save("C:/Users/CPT Danko/Desktop/images_1/NegativeOne07_" + help+ ".png");
+
+                            ImagePatch.Save("C:/Users/CPT Danko/Desktop/images_1/NegativeOne07_" + help + ".png");
                             help++;
                         }
 
@@ -693,7 +844,7 @@ namespace Object_Detection
             }
 
 
-            
+
 
 
 
@@ -701,15 +852,15 @@ namespace Object_Detection
         private void Button_Click(object sender, RoutedEventArgs e)
         {
 
-            
+
             List<float[]> newRegion = new List<float[]>();
             byte[] Pixels;
             System.Drawing.PointF[] centers;
             System.Drawing.Point[] contour;
 
-            Image<Gray,byte> IMG = new Image<Gray, byte>("C:/Users/CPT Danko/Desktop/Test/"+TexBox.Text+".png"); 
+            Image<Gray, byte> IMG = new Image<Gray, byte>("C:/Users/CPT Danko/Desktop/Test/" + TexBox.Text + ".png");
             (Pixels, centers, contour) = ProceessImage(IMG);
-            var Kmeans = FrameObj.Calculate_Kmeans(centers, Pixels);
+            var Kmeans = FrameObj.Calculate_Kmeans(centers, Pixels, IMG.Size);
             var Regions = FrameObj.CalculateRegions(Kmeans);
 
             newRegion.Add(Regions.ToArray());
@@ -717,27 +868,27 @@ namespace Object_Detection
             Matrix<float> matrixk = new Matrix<float>(Object.To2D<float>(newRegion.ToArray()));
 
             var prediction = KNN.Predict(matrixk);
-            DetectedClass.Content = prediction; 
+            DetectedClass.Content = prediction;
         }
 
         private void Scan_Enviroment_Click(object sender, RoutedEventArgs e)
         {
 
             List<Image<Gray, byte>> images = new List<Image<Gray, byte>>();
-            Image<Bgr, byte> Colored = new Image<Bgr, byte>(512,424);
-            List<int> indexes = new List<int>(); 
+            Image<Bgr, byte> Colored = new Image<Bgr, byte>(512, 424);
+            List<int> indexes = new List<int>();
 
-           
 
-            (images,Colored) = SegmentImage(15);
+
+            (images, Colored) = SegmentImage(15);
 
 
             for (int c = 0; c < 3; c++)
-            
+
             {
                 Sliding_Window_Scan(images, new System.Drawing.Size(128, 140));
             }
-            help = 0; 
+            help = 0;
 
 
         }
@@ -749,7 +900,7 @@ namespace Object_Detection
         public List<System.Drawing.Rectangle> NonMaxSuppression(List<System.Drawing.Rectangle> Boxes, float overlapTresh)
         {
 
-            if(Boxes.Count == 0)
+            if (Boxes.Count == 0)
             {
 
             }
@@ -760,35 +911,35 @@ namespace Object_Detection
             List<float> Y2_cor = new List<float>();
             List<float> Area = new List<float>();
             List<float> vs = new List<float>();
-            List<float> pick = new List<float>(); 
+            List<float> pick = new List<float>();
             List<System.Drawing.Rectangle> PickedBoxes = new List<System.Drawing.Rectangle>();
             List<long> OldIndexes = new List<long>();
             foreach (var box in Boxes)
             {
 
                 X1_cor.Add(box.X);
-                X2_cor.Add(box.X+box.Width);
+                X2_cor.Add(box.X + box.Width);
                 Y1_cor.Add(box.Y);
-                Y2_cor.Add(box.Y+box.Height);
-                Area.Add(((box.X+box.Width) - box.X + 1) * ((box.Y+box.Height) - box.Y + 1));
+                Y2_cor.Add(box.Y + box.Height);
+                Area.Add(((box.X + box.Width) - box.X + 1) * ((box.Y + box.Height) - box.Y + 1));
 
             }
 
 
-            
-            
-            var nw =  np.argsort(np.array(Y2_cor.ToArray()));
+
+
+            var nw = np.argsort(np.array(Y2_cor.ToArray()));
             var indxs = nw.GetData<Int64>().ToList();
-            var sss = nw.dtype; 
+            var sss = nw.dtype;
             while (indxs.Count > 0 && OldIndexes.Count != indxs.Count)
             {
 
                 var last = indxs.Count - 1;
                 var i = indxs[last];
                 pick.Add(i);
-                List<Int64> supress = new List<Int64>(); 
+                List<Int64> supress = new List<Int64>();
 
-                for(int k =0;k<last;k++)
+                for (int k = 0; k < last; k++)
                 {
 
                     var j = indxs[k];
@@ -805,24 +956,23 @@ namespace Object_Detection
 
 
                     if (overlap > overlapTresh) supress.Add((int)k);
-                    
-                    
+
+
                 }
-                OldIndexes = indxs; 
-                indxs = indxs.Except(supress).ToList(); 
+                OldIndexes = indxs;
+                indxs = indxs.Except(supress).ToList();
 
             }
-            
-            foreach(var index in pick)
+
+            foreach (var index in pick)
             {
 
-                PickedBoxes.Add(Boxes[(int)index]); 
+                PickedBoxes.Add(Boxes[(int)index]);
 
             }
-            
+
             return PickedBoxes;
         }
     }
-    
+
 }
-  

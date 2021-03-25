@@ -12,7 +12,7 @@ namespace Object_Detection
     {
 
 
-        public Point3D[] Calculate_Kmeans(PointF[] centers, byte[] NonZeroPixel)
+        public Point3D[] Calculate_Kmeans(PointF[] centers, byte[] NonZeroPixel, Size imageSize)
 
         {
 
@@ -29,13 +29,13 @@ namespace Object_Detection
                     for (int k = 0; k < centers.Length; k++)
                     {
 
-                        distances[k] = Sqrt(Pow(Abs((pixel - (pixel / 512) * 512) - centers[k].X), 2) + Pow(Abs((pixel / 512) - centers[k].Y), 2));
+                        distances[k] = Sqrt(Pow(Abs((pixel - (pixel / imageSize.Width) * imageSize.Width) - centers[k].X), 2) + Pow(Abs((pixel / imageSize.Width) - centers[k].Y), 2));
 
                     }
 
                     Point3D point3D = new Point3D();
-                    point3D.X = pixel - ((pixel / 512) * 512);
-                    point3D.Y = pixel / 512;
+                    point3D.X = pixel - ((pixel / imageSize.Width) * imageSize.Width);
+                    point3D.Y = pixel / imageSize.Width;
                     point3D.Z = Array.IndexOf(distances, distances.Max());
 
 

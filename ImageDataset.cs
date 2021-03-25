@@ -1,6 +1,5 @@
 ﻿using Emgu.CV;
 using Emgu.CV.Structure;
-using Emgu.CV.Util;
 using System.Collections.Generic;
 
 namespace Object_Detection
