@@ -34,7 +34,7 @@ namespace Object_Detection
         private byte[] depthpixels = null;                  // - intermediate storage for frame datta conveted to color pointer 
         private string KinectStatus = null;                 // - current status of the kinect sensor 
         public string ObjectProperty = "";
-        List<ImageDataset> Datasets = new List<ImageDataset>();
+        private List<ImageDataset> Datasets = new List<ImageDataset>();
         Object FrameObj = new Object();
         KNearest KNN = new KNearest();
         List<ImageDataset> TrainD = new List<ImageDataset>();
@@ -47,8 +47,9 @@ namespace Object_Detection
         BackgroundWorker bckgroundworker1 = new BackgroundWorker();
         BackgroundWorker Rendering = new BackgroundWorker(); 
         private string[] images = null;
-        bool TaskCompleted = false; 
-
+        bool TaskCompleted = false;
+        private System.Drawing.Rectangle BoundingBox = new System.Drawing.Rectangle();
+        private System.Collections.IList clsses = null;  
 
         public MainWindow()
         {
@@ -156,11 +157,11 @@ namespace Object_Detection
             {
 
                 System.Drawing.Rectangle finalrectangle = new System.Drawing.Rectangle(new System.Drawing.Point((int)X1.Min(), (int)Y1.Min()), new System.Drawing.Size((int)(X2.Max() - X1.Max()), (int)(Y2.Max() - Y1.Max())));
-                CvInvoke.Rectangle(image, finalrectangle, new MCvScalar(255, 255, 255));
+                BoundingBox = finalrectangle; 
             }
 
             BitmapSource FrameBitmap = BitmapSourceConvert.ToBitmapSource(BGR);
-            
+            FrameBitmap.Freeze();
             
             LoadCapture.Dispatcher.Invoke(()=>
             {
@@ -221,6 +222,10 @@ namespace Object_Detection
                     Datasets[index].RegionsValues.Add(Regions.ToArray());
                     Datasets[index].ImageContours.Add(contour);
                     Datasets[index].NonZeroPixels.Add(NoZeroPxls.Length);
+                    
+                    
+
+                    
                 }
                 else
                 {
@@ -235,7 +240,17 @@ namespace Object_Detection
                     img.ImageContours.Add(contour);
                     img.NonZeroPixels.Add(NoZeroPxls.Length);
                     Datasets.Add(img);
-
+                    Class_Select.Dispatcher.Invoke(() =>
+                    {
+                        Class_Select.Items.Add(label);
+                    }
+                    );
+                    IndexList.Dispatcher.Invoke(() =>
+                    {
+                        IndexList.Items.Add(label);
+                    });
+                    
+                        
                 }
 
 
@@ -333,11 +348,15 @@ namespace Object_Detection
 
                
                 RenderPixels();
+                
 
             }
             if (!Rendering.IsBusy && IsDataLoaded && IsTrained)
             {
                 Rendering.RunWorkerAsync();
+
+                clsses = Class_Select.SelectedItems;
+
             }
 
 
@@ -374,15 +393,12 @@ namespace Object_Detection
         private unsafe void RenderPixels()
 
         {
-            Thread.CurrentThread.
-            if (!TaskCompleted)
-            {
-                depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), depthpixels, depthbitmap.PixelWidth, 0);
-            }
-            else
-            {
-                TaskCompleted = false; 
-            }
+
+            Image<Gray, byte> FinalImage = new Image<Gray, byte>(512, 424);
+            FinalImage.Bytes = depthpixels;
+            CvInvoke.Rectangle(FinalImage, BoundingBox, new MCvScalar(255, 255, 255)); 
+            depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), FinalImage.Bytes, depthbitmap.PixelWidth, 0);
+           
             
             
 
@@ -522,7 +538,7 @@ namespace Object_Detection
 
             }
 
-            var ConfMatrix = Object.ComputeConfusionMatrix(ActualClasses.ToArray(), Predictions.ToArray());
+            var ConfMatrix = Object.ComputeConfusionMatrix(ActualClasses.ToArray(), Predictions.ToArray(),Datasets.Count);
             var metrics = Object.CalculateMetrics(ConfMatrix, ActualClasses.ToArray(), Predictions.ToArray());
             string results = $"Test Samples {ActualClasses.Count} \n   Accuraccy = {metrics[0] * 100} % \n " +
                 $"Precission = {metrics[1] * 100} % \n  Recall = {metrics[2] * 100} %";
@@ -547,7 +563,7 @@ namespace Object_Detection
                 var ImgName = Path.GetFileName(images[image]);
                 var label = int.Parse(ImgName.Substring(ImgName.IndexOf("_") - 2, 2));
                 var index = Datasets.FindIndex(x => x.Class == label);
-
+                
 
 
                 System.Drawing.PointF[] centers;
@@ -600,6 +616,7 @@ namespace Object_Detection
                     Datasets[index].RegionsValues.Add(Regions.ToArray());
                     Datasets[index].ImageContours.Add(contour);
                     Datasets[index].NonZeroPixels.Add(NoZeroPxls.Length);
+                    
                 }
                 else
                 {
@@ -682,12 +699,12 @@ namespace Object_Detection
         {
 
             var time = Stopwatch.StartNew();
-            SplitData();
-            Train_KNN();
+            TrainD.Clear();
+            Train_KNN_Full();
             Test_KNN();
             time.Stop();
             Prediction.Content = time.ElapsedMilliseconds + "ms";
-
+            TestD.Clear();
         }
 
         private void Start_Detection_Click(object sender, RoutedEventArgs e)
@@ -791,8 +808,11 @@ namespace Object_Detection
 
                             var prediction = KNN.Predict(matrixk);
 
+                           
 
-                            if (prediction == 4)
+                           
+
+                            if (clsses.Contains((int)prediction))
                             {
 
                                 Outrectangles.Add(subrect);
@@ -813,11 +833,11 @@ namespace Object_Detection
 
 
         }
-        private void Sliding_Window_Scan(List<Image<Gray, byte>> InputImage, System.Drawing.Size patchSize)
+        private void Sliding_Window_Scan(List<Image<Gray, byte>> InputImage, System.Drawing.Size patchSize, string path)
 
         {
 
-            List<System.Drawing.Rectangle> Outrectangles = new List<System.Drawing.Rectangle>();
+            
             Image<Gray, byte> ImagePatch = new Image<Gray, byte>(patchSize);
             Image<Gray, byte> OutputImage = new Image<Gray, byte>(512, 424);
             System.Drawing.Rectangle subrect = new System.Drawing.Rectangle(0, 0, patchSize.Width, patchSize.Height);
@@ -847,8 +867,10 @@ namespace Object_Detection
                         if (Count > 100)
                         {
 
-                            ImagePatch.Save("C:/Users/CPT Danko/Desktop/images_1/NegativeOne07_" + help + ".png");
+                            ImagePatch.Save(path + help + ".png");
+                            Actual_Picker.Items.Add(help);
                             help++;
+                            
                         }
 
                     }
@@ -901,7 +923,7 @@ namespace Object_Detection
             for (int c = 0; c < 3; c++)
 
             {
-                Sliding_Window_Scan(images, new System.Drawing.Size(128, 140));
+                Sliding_Window_Scan(images, new System.Drawing.Size(128, 140), "C:/Users/CPT Danko/Desktop/images_1/NegativeOne07_");
             }
             help = 0;
 
@@ -912,6 +934,117 @@ namespace Object_Detection
         {
             return b0 + (b1 - b0) * ((a - a0) / (a1 - a0));
         }
+
+        private void Separate_data_Click(object sender, RoutedEventArgs e)
+        {
+           
+
+            var Scanned_files = Directory.GetFiles("C:/Users/CPT Danko/Desktop/ObjectD_Scan");
+            var pickerValues = Actual_Picker.SelectedItems;
+            int helpC = 0;
+            List<int> indexes = new List<int>();
+            
+            object[] indx = new object[pickerValues.Count];
+
+            for (int file = 0; file < Scanned_files.Length; file++)
+            {
+                bool contain = false;
+                var filename = Path.GetFileName(Scanned_files[file]);
+                try
+                {
+                    contain = pickerValues.Contains(Int32.Parse(filename.Substring(0, filename.Length - 4)));
+                }
+                catch(Exception ex)
+                {
+                    
+
+                }
+                
+                Image<Gray, byte> image = new Image<Gray, byte>(512,424);
+                string name = "";
+                
+                pickerValues.CopyTo(indx, 0);
+
+                
+                if (contain)
+                {
+                    File.Move(Scanned_files[file], "C:/Users/CPT Danko/Desktop/ObjectD_Scan/"+IndexList.SelectedItem.ToString()+"_" + helpC + ".png");
+                    image = new Image<Gray, byte>("C:/Users/CPT Danko/Desktop/ObjectD_Scan/" + IndexList.SelectedItem.ToString() + "_" + helpC + ".png");
+                    name = Path.GetFileName("C:/Users/CPT Danko/Desktop/ObjectD_Scan/" + IndexList.SelectedItem.ToString() + "_" + helpC + ".png");
+                    int label = int.Parse(name.Substring(name.IndexOf("_") - 1, 1));
+                    var index = TestD.FindIndex(x => x.Class == label);
+
+                    System.Drawing.PointF[] centers;
+                    byte[] NoZeroPxls;
+                    List<Image<Gray, byte>> NewImage = new List<Image<Gray, byte>>();
+                    System.Drawing.Point[] contour;
+
+                    (NoZeroPxls, centers, contour) = ProceessImage(image);
+
+                    var LabeledArray = FrameObj.Calculate_Kmeans(centers, NoZeroPxls, image.Size);
+                    var Regions = FrameObj.CalculateRegions(LabeledArray);
+
+                    Image<Bgr, byte> colored = new Image<Bgr, byte>(512, 424);
+
+
+
+
+                    if (index > -1)
+                    {
+                        TestD[index].Images.Add(image);
+                        TestD[index].RegionsValues.Add(Regions.ToArray());
+                        TestD[index].ImageContours.Add(contour);
+                        TestD[index].NonZeroPixels.Add(NoZeroPxls.Length);
+
+
+
+
+                    }
+                    else
+                    {
+                        ImageDataset img = new ImageDataset();
+                        img.Images = new List<Image<Gray, byte>>();
+                        img.RegionsValues = new List<float[]>();
+                        img.ImageContours = new List<System.Drawing.Point[]>();
+                        img.NonZeroPixels = new List<int>();
+                        img.Images.Add(image);
+                        img.Class = label;
+                        img.RegionsValues.Add(Regions.ToArray());
+                        img.ImageContours.Add(contour);
+                        img.NonZeroPixels.Add(NoZeroPxls.Length);
+                        TestD.Add(img);
+
+                    }
+
+                    helpC++;
+                   
+                }
+                
+
+                
+            
+
+            }
+            foreach (var index in indx) Actual_Picker.Items.Remove(index);
+        }
+
+        private void Scan_Data_Click(object sender, RoutedEventArgs e)
+        {
+            Image<Gray, byte> imageSC = new Image<Gray, byte>(512, 424);
+            imageSC.Bytes = depthpixels;
+            List<Image<Gray, byte>> imagesSC = new List<Image<Gray, byte>>();
+            imagesSC.Add(imageSC);
+            var files = Directory.GetFiles("C:/Users/CPT Danko/Desktop/ObjectD_Scan");
+            foreach (var file in files) File.Delete(file); 
+            Sliding_Window_Scan(imagesSC, new System.Drawing.Size(128, 140), "C:/Users/CPT Danko/Desktop/ObjectD_Scan/");
+
+        }
+
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+            Actual_Picker.SelectAll();
+        }
+
         public List<System.Drawing.Rectangle> NonMaxSuppression(List<System.Drawing.Rectangle> Boxes, float overlapTresh)
         {
 

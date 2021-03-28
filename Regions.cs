@@ -161,16 +161,15 @@ namespace Object_Detection
             return (ReturnD, ReturnC);
 
         }
-        public static int[,] ComputeConfusionMatrix(int[] actual, int[] predicted)
+        public static int[,] ComputeConfusionMatrix(int[] actual, int[] predicted, int NoClasses)
         {
-            try
-            {
+           
                 if (actual.Length != predicted.Length)
                 {
                     throw new Exception("Vectors lengths not matched");
                 }
 
-                int NoClasses = actual.Distinct().Count();
+                
                 int[,] CM = new int[NoClasses, NoClasses];
                 for (int i = 0; i < actual.Length; i++)
                 {
@@ -179,11 +178,7 @@ namespace Object_Detection
                     CM[r, c]++;
                 }
                 return CM;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception(ex.Message);
-            }
+          
         }
         public static double[] CalculateMetrics(int[,] CM, int[] actual, int[] predicted)
         {
