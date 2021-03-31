@@ -8,9 +8,11 @@ using static System.Math;
 
 namespace Object_Detection
 {
+
+    
     class Object
     {
-
+        public int[,] CM_Total = new int[7, 7];
 
         public Point3D[] Calculate_Kmeans(PointF[] centers, byte[] NonZeroPixel, Size imageSize)
 
@@ -161,7 +163,7 @@ namespace Object_Detection
             return (ReturnD, ReturnC);
 
         }
-        public static int[,] ComputeConfusionMatrix(int[] actual, int[] predicted, int NoClasses)
+        public int[,] ComputeConfusionMatrix(int[] actual, int[] predicted, int NoClasses)
         {
            
                 if (actual.Length != predicted.Length)
@@ -176,22 +178,23 @@ namespace Object_Detection
                     int r = predicted[i] - 1;
                     int c = actual[i] - 1;
                     CM[r, c]++;
+                    CM_Total[r, c]++;
                 }
                 return CM;
           
         }
-        public static double[] CalculateMetrics(int[,] CM, int[] actual, int[] predicted)
+        public  double[] CalculateMetrics(int[,] CM, int[] actual, int[] predicted)
         {
             try
             {
                 double[] metrics = new double[3];
                 int samples = actual.Length;
-                int classes = (int)CM.GetLongLength(0);
-                var diagonal = GetDiagonal(CM);
+                int classes = (int)CM_Total.GetLongLength(0);
+                var diagonal = GetDiagonal(CM_Total);
                 var diagnolSum = diagonal.Sum();
 
-                int[] ColTotal = GetSumCols(CM);
-                int[] RowTotal = GetSumRows(CM);
+                int[] ColTotal = GetSumCols(CM_Total);
+                int[] RowTotal = GetSumRows(CM_Total);
 
                 // Accuracy
                 var accuracy = diagnolSum / (double)samples;
