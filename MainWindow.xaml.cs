@@ -13,8 +13,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -51,10 +49,11 @@ namespace Object_Detection
         bool TaskCompleted = false;
         private System.Drawing.Rectangle BoundingBox = new System.Drawing.Rectangle();
         private System.Collections.IList clsses = null;
-        private Object OB = new Object(); 
+        private Object OB = new Object();
         ConfMat confMat = new ConfMat();
         int counter = 0;
-
+        Stopwatch abc = new Stopwatch();
+        int distance = 0;
 
         public MainWindow()
         {
@@ -71,7 +70,10 @@ namespace Object_Detection
             kinectSensor.IsAvailableChanged += Sensor_IsAvaibleChanged;
             kinectSensor.Open();
             StatusText = kinectSensor.IsAvailable ? "Running" : "Turned off";
-            DataContext = this;   //  - window object is used as the view model for default binding source of objects || WIKI : Data context is a concept that allows elements to inherit information from their parent elements about the data source that is used for binding, as well as other characteristics of the binding, such as the path. 
+            DataContext = this; 
+            
+            //  - window object is used as the view model for default binding source of objects || WIKI : Data context is a concept that allows elements to inherit information from their parent elements about the data source that is used for binding, as well as other characteristics of the binding, such as the path. 
+          
             bckgroundworker1.WorkerSupportsCancellation = true;
             bckgroundworker1.WorkerReportsProgress = true;
             bckgroundworker1.ProgressChanged += ProgressChanged;
@@ -84,6 +86,7 @@ namespace Object_Detection
             // not required for this question, but is a helpful event to handle
             bckgroundworker1.RunWorkerCompleted += Bckgroundworker1_RunWorkerCompleted;
             Rendering.RunWorkerCompleted += Rendering_RunWorkerCompleted;
+            
             images = Directory.GetFiles("C:/Users/CPT Danko/Desktop/images_1");
 
             RawData.Clear();
@@ -106,7 +109,7 @@ namespace Object_Detection
 
         private void Rendering_DoWork(object sender, DoWorkEventArgs e)
         {
-            var abc = Stopwatch.StartNew();
+            
             Image<Gray, byte> image = new Image<Gray, byte>(frameDescription.Width, frameDescription.Height);
             image.Bytes = depthpixels;
             List<Image<Gray, byte>> ImageList = new List<Image<Gray, byte>>();
@@ -121,6 +124,8 @@ namespace Object_Detection
 
 
             List<System.Drawing.Rectangle> Boxes = Sliding_Window(ImageList, new System.Drawing.Size(128, 140));
+            
+
 
             int[] intersectionCount = new int[Boxes.Count];
 
@@ -131,6 +136,7 @@ namespace Object_Detection
                     if (Boxes[c].IntersectsWith(Boxes[k]))
                     {
                         intersectionCount[c]++;
+                        CvInvoke.Rectangle(BGR, Boxes[c], new MCvScalar(255, 255, 255));
                     }
 
                 }
@@ -155,7 +161,7 @@ namespace Object_Detection
                 X2.Add(Boxes[box].X + Boxes[box].Width);
                 Y1.Add(Boxes[box].Y);
                 Y2.Add(Boxes[box].Y + Boxes[box].Height);
-                CvInvoke.Rectangle(BGR, Boxes[box], new MCvScalar(255, 255, 255));
+               // CvInvoke.Rectangle(BGR, Boxes[box], new MCvScalar(255, 255, 255));
             }
 
             if (X1.Count != 0)
@@ -179,8 +185,23 @@ namespace Object_Detection
                 depthbitmap.WritePixels(new Int32Rect(0, 0, depthbitmap.PixelWidth, depthbitmap.PixelHeight), image.Bytes, depthbitmap.PixelWidth, 0);
             });
 
-            abc.Stop();
-            var time = abc.ElapsedMilliseconds;
+           
+            
+          
+
+           
+            
+                if (abc.IsRunning && distance < 20)
+                {
+                    abc.Stop();
+                    var time = abc.ElapsedMilliseconds;
+                    File.AppendAllText("C:/Users/CPT Danko/Desktop/SpeedValues.txt", time + " ms  " + distance + " meranie" + Environment.NewLine);
+                    distance++;
+                    
+                }
+
+           
+
 
         }
 
@@ -330,6 +351,8 @@ namespace Object_Detection
 
         private void DepthFrameReader_FrameArrived(object sender, DepthFrameArrivedEventArgs e)
         {
+
+            if (!Rendering.IsBusy && !abc.IsRunning && IsDataLoaded && IsTrained) abc = Stopwatch.StartNew();
             bool IsFrameProcessed = false;
             using (DepthFrame depthFrame = e.FrameReference.AcquireFrame())
             {
@@ -357,6 +380,7 @@ namespace Object_Detection
 
 
             }
+            
             if (!Rendering.IsBusy && IsDataLoaded && IsTrained)
             {
                 Rendering.RunWorkerAsync();
@@ -364,7 +388,7 @@ namespace Object_Detection
                 clsses = Class_Select.SelectedItems;
 
             }
-
+            
 
         }
         private unsafe void ProcessDepthFrameData(IntPtr depthFrameData, uint depthFrameDataSize, ushort minDepth, ushort maxDepth)
@@ -422,7 +446,7 @@ namespace Object_Detection
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             // after the window is closed dispose the framereade and close the kinect sensor 
-
+            confMat.Close();
             if (depthFrameReader != null)
             {
                 depthFrameReader.Dispose();
@@ -433,8 +457,10 @@ namespace Object_Detection
                 kinectSensor.Close();
                 kinectSensor = null;
             }
-            if (bckgroundworker1.IsBusy) bckgroundworker1.CancelAsync();
-            if (Rendering.IsBusy) Rendering.CancelAsync();
+            bckgroundworker1.CancelAsync();
+            Rendering.Dispose();
+            Rendering.CancelAsync();
+            
         }
 
         private void CaptureBtn_Click(object sender, RoutedEventArgs e)
@@ -758,6 +784,7 @@ namespace Object_Detection
 
         private void Test_Accuracy_Click(object sender, RoutedEventArgs e)
         {
+
             var Scanned_files = Directory.GetFiles("C:/Users/CPT Danko/Desktop/ObjectDScan");
             foreach (var file in Scanned_files)
             {
@@ -811,15 +838,16 @@ namespace Object_Detection
 
                 
             }
-            var time = Stopwatch.StartNew();
+            ;
             
             Train_KNN_Full();
             Test_KNN();
-            time.Stop();
-            Prediction.Content = time.ElapsedMilliseconds + "ms";
+            
+            
             if (confMat.IsActive == false) confMat.Show();
             counter++;
             DetectedClass.Content = counter;
+            
         }
 
         private void Start_Detection_Click(object sender, RoutedEventArgs e)
@@ -910,7 +938,7 @@ namespace Object_Detection
                             VectorOfVectorOfPoint dasd = new VectorOfVectorOfPoint();
 
 
-                            ImagePatch.Save("C:/Users/CPT Danko/Desktop/Test/" + help + ".png");
+                            //ImagePatch.Save("C:/Users/CPT Danko/Desktop/Test/" + help + ".png");
                             (Pixels, centers, contour) = ProceessImage(ImagePatch);
 
 
@@ -1129,6 +1157,7 @@ namespace Object_Detection
 
         private void Scan_Data_Click(object sender, RoutedEventArgs e)
         {
+           
             Image<Gray, byte> imageSC = new Image<Gray, byte>(512, 424);
             imageSC.Bytes = depthpixels;
             List<Image<Gray, byte>> imagesSC = new List<Image<Gray, byte>>();
@@ -1138,7 +1167,6 @@ namespace Object_Detection
             Image<Bgr, byte> IMAGEBGR = new Image<Bgr, byte>(52,424);
             (imagesSC,IMAGEBGR) = SegmentImage(15);
             Sliding_Window_Scan(imagesSC, new System.Drawing.Size(128, 140), "C:/Users/CPT Danko/Desktop/ObjectDScan/");
-
         }
 
         private void Button_Click_1(object sender, RoutedEventArgs e)

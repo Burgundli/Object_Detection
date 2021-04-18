@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Object_Detection"
         mc:Ignorable="d"
-        Title="MainWindow" Height="803" Width="800" Closing="Window_Closing">
+        Title="MainWindow" Height="803" Width="800" Closing="Window_Closing"
+        >
     <Grid Margin="0,0,-0.4,-7.4">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="207*"/>
@@ -55,8 +56,6 @@
         <Button x:Name="Test_Accuracy" Content="Test accuracy " HorizontalAlignment="Left" Height="35" Margin="34,566,0,0" VerticalAlignment="Top" Width="116" Click="Test_Accuracy_Click"/>
         <Button x:Name="Start_Detection" Grid.ColumnSpan="2" Content="Start detection" HorizontalAlignment="Left" Height="34" Margin="338,589,0,0" VerticalAlignment="Top" Width="200" Click="Start_Detection_Click"/>
         <Label x:Name="Prediction" Content="Label" Grid.Column="1" HorizontalAlignment="Left" Height="41" Margin="106.4,449,0,0" VerticalAlignment="Top" Width="91"/>
-        <Label  HorizontalAlignment="Left" Margin="46,743,0,0" VerticalAlignment="Top" Content="{Binding ElementName=Min_Depth, Path=Value}" RenderTransformOrigin="0.4,-1.109"/>
-        <Label HorizontalAlignment="Left" Margin="407,743,0,0" VerticalAlignment="Top" Content="{Binding ElementName=Max_Depth,Path=Value}" RenderTransformOrigin="0.4,-1.172" Grid.ColumnSpan="2"/>
         <Button x:Name="Test" Grid.ColumnSpan="2" Content="Test" Grid.Column="1" HorizontalAlignment="Left" Height="34" Margin="170.4,589,0,0" VerticalAlignment="Top" Width="163" Click="Test_Click"/>
         <Label x:Name="DetectedClass" Grid.ColumnSpan="2" Content="Label" HorizontalAlignment="Left" Height="34" Margin="338,449,0,0" VerticalAlignment="Top" Width="123"/>
         <Button Content="Button" HorizontalAlignment="Left" Margin="256,485,0,0" VerticalAlignment="Top" Width="105" Height="29" Click="Button_Click" Grid.ColumnSpan="2" Grid.Column="1"/>
